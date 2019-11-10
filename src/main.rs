@@ -64,18 +64,11 @@ async fn make_doh_request(request_buffer: Vec<u8>) -> Result<DOHResponse, surf::
 
     info!("before surf post");
 
-    let mut response = match surf::post("https://dns.google/dns-query")
+    let mut response = surf::post("https://dns.google/dns-query")
         .body_bytes(request_buffer)
         .set_header("content-type", "application/dns-message")
         .set_header("accept", "application/dns-message")
-        .await
-    {
-        Ok(resp) => resp,
-        Err(e) => {
-            warn!("surf::post error {}", e);
-            return Err(e);
-        }
-    };
+        .await?;
 
     info!("after surf post response status = {}", response.status());
 
