@@ -161,13 +161,8 @@ async fn process_udp_packet(
 ) {
     match process_udp_request_packet_buffer(&request_buffer[0..request_bytes_received]).await {
         Some(response_buffer) => match socket.send_to(&response_buffer, peer).await {
-            Err(e) => {
-                warn!("send_to error {}", e);
-                return;
-            }
-            Ok(bytes_written) => {
-                info!("send_to success bytes_written = {}", bytes_written);
-            }
+            Err(e) => warn!("send_to error {}", e),
+            Ok(bytes_written) => info!("send_to success bytes_written = {}", bytes_written),
         },
         None => warn!("got None response from process_udp_request_packet_buffer"),
     }
