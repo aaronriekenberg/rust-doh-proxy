@@ -2,8 +2,6 @@ use async_std::io;
 use async_std::net::UdpSocket;
 use async_std::task;
 
-// use futures::try_join;
-
 use log::{info, warn};
 
 use std::sync::Arc;
@@ -11,28 +9,6 @@ use std::sync::Arc;
 use trust_dns_proto::error::ProtoResult;
 use trust_dns_proto::op::Message;
 use trust_dns_proto::serialize::binary::{BinDecodable, BinDecoder, BinEncodable, BinEncoder};
-
-// async fn make_http_call(uri: &str) -> Result<String, surf::Exception> {
-//     info!("make_http_call uri: {}", uri);
-//
-//     surf::get(uri).recv_string().await
-// }
-//
-// async fn make_http_calls() -> Result<(), surf::Exception> {
-//     let uri1 = "https://httpbin.org/get";
-//     let future1 = make_http_call(&uri1);
-//
-//     let uri2 = "https://httpbin.org/get2";
-//     let future2 = make_http_call(&uri2);
-//
-//     info!("before try_join");
-//
-//     let results = try_join!(future1, future2)?;
-//
-//     info!("make_http_calls got results: {:#?}", results);
-//
-//     Ok(())
-// }
 
 fn encode_dns_message(message: &Message) -> ProtoResult<Vec<u8>> {
     let mut request_buffer = Vec::new();
