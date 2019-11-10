@@ -40,6 +40,20 @@ fn decode_dns_message(buffer: Vec<u8>) -> ProtoResult<Message> {
     }
 }
 
+fn build_failure_response(request: &Message) -> Option<Vec<u8>> {
+    let mut response_message = request.clone();
+    response_message.set_message_type(trust_dns_proto::op::MessageType::Response);
+    response_message.set_response_code(trust_dns_proto::op::ResponseCode::ServFail);
+
+    match encode_dns_message(&response_message) {
+        Err(e) => {
+            warn!("encode_dns_message error {}", e);
+            None
+        }
+        Ok(buffer) => Some(buffer),
+    }
+}
+
 enum DOHResponse {
     HTTPRequestError,
     HTTPRequestSuccess(Vec<u8>),
@@ -73,41 +87,37 @@ async fn make_doh_request(request_buffer: Vec<u8>) -> Result<DOHResponse, surf::
     Ok(DOHResponse::HTTPRequestSuccess(response_buffer))
 }
 
-async fn process_udp_packet(
-    socket: Arc<UdpSocket>,
-    buffer: Vec<u8>,
+async fn process_udp_request_packet_buffer(
+    request_buffer: Vec<u8>,
     bytes_received: usize,
-    peer: std::net::SocketAddr,
-) {
+) -> Option<Vec<u8>> {
     info!(
-        "process_udp_packet received {} from udp peer {}",
-        bytes_received, peer
+        "process_udp_request_packet_buffer received {}",
+        bytes_received
     );
-    let mut decoder = BinDecoder::new(&buffer[0..bytes_received]);
+    let mut decoder = BinDecoder::new(&request_buffer[0..bytes_received]);
 
-    let mut request_message = match Message::read(&mut decoder) {
+    let request_message = match Message::read(&mut decoder) {
         Err(e) => {
             warn!("udp dns packet perse error {}", e);
-            return;
+            return None;
         }
         Ok(message) => message,
     };
 
     // info!("parsed udp dns packet {:#?}", request_message);
 
-    let original_id = request_message.header().id();
-
-    request_message.set_id(0);
-
     if request_message.queries().len() < 1 {
         info!("request_message.queries is empty");
-        return;
+        return build_failure_response(&request_message);
     }
 
-    let request_buffer = match encode_dns_message(&request_message) {
+    let mut doh_request_message = request_message.clone();
+    doh_request_message.set_id(0);
+    let request_buffer = match encode_dns_message(&doh_request_message) {
         Err(e) => {
             warn!("encode_dns_message error {}", e);
-            return;
+            return build_failure_response(&request_message);
         }
         Ok(buffer) => buffer,
     };
@@ -115,7 +125,7 @@ async fn process_udp_packet(
     let doh_response = match make_doh_request(request_buffer).await {
         Err(e) => {
             warn!("make_doh_request error {}", e);
-            return;
+            return build_failure_response(&request_message);
         }
         Ok(doh_response) => doh_response,
     };
@@ -123,7 +133,7 @@ async fn process_udp_packet(
     let response_buffer = match doh_response {
         DOHResponse::HTTPRequestError => {
             warn!("got http request error");
-            return;
+            return build_failure_response(&request_message);
         }
         DOHResponse::HTTPRequestSuccess(response_buffer) => response_buffer,
     };
@@ -133,31 +143,43 @@ async fn process_udp_packet(
     let mut response_message = match decode_dns_message(response_buffer) {
         Err(e) => {
             warn!("decode_dns_message error {}", e);
-            return;
+            return build_failure_response(&request_message);
         }
         Ok(message) => message,
     };
 
     // info!("response_message = {:#?}", response_message);
 
-    response_message.set_id(original_id);
+    response_message.set_id(request_message.header().id());
 
     let response_buffer = match encode_dns_message(&response_message) {
         Err(e) => {
             warn!("encode_dns_message error {}", e);
-            return;
+            return build_failure_response(&request_message);
         }
         Ok(buffer) => buffer,
     };
 
-    match socket.send_to(&response_buffer, peer).await {
-        Err(e) => {
-            warn!("send_to error {}", e);
-            return;
-        }
-        Ok(bytes_written) => {
-            info!("send_to success bytes_written = {}", bytes_written);
-        }
+    Some(response_buffer)
+}
+
+async fn process_udp_packet(
+    socket: Arc<UdpSocket>,
+    request_buffer: Vec<u8>,
+    request_bytes_received: usize,
+    peer: std::net::SocketAddr,
+) {
+    match process_udp_request_packet_buffer(request_buffer, request_bytes_received).await {
+        Some(response_buffer) => match socket.send_to(&response_buffer, peer).await {
+            Err(e) => {
+                warn!("send_to error {}", e);
+                return;
+            }
+            Ok(bytes_written) => {
+                info!("send_to success bytes_written = {}", bytes_written);
+            }
+        },
+        None => warn!("got None response from process_udp_request_packet_buffer"),
     }
 }
 
