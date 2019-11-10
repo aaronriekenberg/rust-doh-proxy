@@ -8,8 +8,8 @@ edition = "2018"
 
 [dependencies]
 async-std = "0.99.12"
-dns-parser = "0.8.0"
 env_logger = "0.7.1"
 futures = "0.3.1"
 log = "0.4.8"
 surf = "1.0.3"
+trust-dns-proto = "0.8.0"
