@@ -87,15 +87,12 @@ async fn make_doh_request(request_buffer: Vec<u8>) -> Result<DOHResponse, surf::
     Ok(DOHResponse::HTTPRequestSuccess(response_buffer))
 }
 
-async fn process_udp_request_packet_buffer(
-    request_buffer: Vec<u8>,
-    bytes_received: usize,
-) -> Option<Vec<u8>> {
+async fn process_udp_request_packet_buffer(request_buffer: &[u8]) -> Option<Vec<u8>> {
     info!(
         "process_udp_request_packet_buffer received {}",
-        bytes_received
+        request_buffer.len()
     );
-    let mut decoder = BinDecoder::new(&request_buffer[0..bytes_received]);
+    let mut decoder = BinDecoder::new(&request_buffer);
 
     let request_message = match Message::read(&mut decoder) {
         Err(e) => {
@@ -169,7 +166,7 @@ async fn process_udp_packet(
     request_bytes_received: usize,
     peer: std::net::SocketAddr,
 ) {
-    match process_udp_request_packet_buffer(request_buffer, request_bytes_received).await {
+    match process_udp_request_packet_buffer(&request_buffer[0..request_bytes_received]).await {
         Some(response_buffer) => match socket.send_to(&response_buffer, peer).await {
             Err(e) => {
                 warn!("send_to error {}", e);
