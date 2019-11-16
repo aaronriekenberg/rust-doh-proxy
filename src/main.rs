@@ -106,6 +106,7 @@ async fn process_request_packet_buffer(request_buffer: &[u8]) -> Option<Vec<u8>>
 
     let mut doh_request_message = request_message.clone();
     doh_request_message.set_id(0);
+    let doh_request_message = doh_request_message;
     let request_buffer = match encode_dns_message(&doh_request_message) {
         Err(e) => {
             warn!("encode_dns_message error {}", e);
@@ -176,42 +177,36 @@ async fn process_tcp_stream(stream: TcpStream) -> io::Result<()> {
     let (reader, writer) = &mut (&stream, &stream);
 
     loop {
-        let mut request_length_buffer = [0u8; 2];
-        reader.read_exact(&mut request_length_buffer).await?;
+        let mut buffer = [0u8; 2];
+        reader.read_exact(&mut buffer).await?;
 
-        let request_length = u16::from_be_bytes(request_length_buffer);
-        info!("request_length = {}", request_length);
+        let length = u16::from_be_bytes(buffer);
+        info!("request length = {}", length);
 
-        let mut request_buffer = vec![0u8; usize::from(request_length)];
-        reader.read_exact(&mut request_buffer).await?;
+        let mut buffer = vec![0u8; usize::from(length)];
+        reader.read_exact(&mut buffer).await?;
 
-        info!("read request_buffer len = {}", request_buffer.len());
+        info!("read request buffer len = {}", buffer.len());
 
-        let response_buffer = match process_request_packet_buffer(&request_buffer).await {
-            Some(response_buffer) => response_buffer,
+        let buffer = match process_request_packet_buffer(&buffer).await {
+            Some(buffer) => buffer,
             None => {
                 warn!("got None response from process_request_packet_buffer");
                 continue;
             }
         };
 
-        let response_length = match u16::try_from(response_buffer.len()) {
+        let length = match u16::try_from(buffer.len()) {
             Ok(len) => len,
             Err(e) => {
-                warn!(
-                    "response_buffer.len overflow {}: {}",
-                    response_buffer.len(),
-                    e
-                );
+                warn!("response buffer.len overflow {}: {}", buffer.len(), e);
                 break;
             }
         };
 
-        let response_length_buffer = response_length.to_be_bytes();
+        writer.write_all(&length.to_be_bytes()).await?;
 
-        writer.write_all(&response_length_buffer).await?;
-
-        writer.write_all(&response_buffer).await?;
+        writer.write_all(&buffer).await?;
     }
 
     Ok(())
