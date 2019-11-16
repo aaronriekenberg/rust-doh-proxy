@@ -1,9 +1,11 @@
 use async_std::io;
-use async_std::net::UdpSocket;
+use async_std::net::{TcpListener, TcpStream, UdpSocket};
+use async_std::prelude::*;
 use async_std::task;
 
 use log::{info, warn};
 
+use std::convert::TryFrom;
 use std::sync::Arc;
 
 use trust_dns_proto::error::ProtoResult;
@@ -80,9 +82,9 @@ async fn make_doh_request(request_buffer: Vec<u8>) -> Result<DOHResponse, surf::
     Ok(DOHResponse::HTTPRequestSuccess(response_buffer))
 }
 
-async fn process_udp_request_packet_buffer(request_buffer: &[u8]) -> Option<Vec<u8>> {
+async fn process_request_packet_buffer(request_buffer: &[u8]) -> Option<Vec<u8>> {
     info!(
-        "process_udp_request_packet_buffer received {}",
+        "process_request_packet_buffer received {}",
         request_buffer.len()
     );
     let mut decoder = BinDecoder::new(&request_buffer);
@@ -159,19 +161,82 @@ async fn process_udp_packet(
     request_bytes_received: usize,
     peer: std::net::SocketAddr,
 ) {
-    match process_udp_request_packet_buffer(&request_buffer[0..request_bytes_received]).await {
+    match process_request_packet_buffer(&request_buffer[..request_bytes_received]).await {
         Some(response_buffer) => match socket.send_to(&response_buffer, peer).await {
             Err(e) => warn!("send_to error {}", e),
             Ok(bytes_written) => info!("send_to success bytes_written = {}", bytes_written),
         },
-        None => warn!("got None response from process_udp_request_packet_buffer"),
+        None => warn!("got None response from process_request_packet_buffer"),
     }
 }
 
+async fn process_tcp_stream(stream: TcpStream) -> io::Result<()> {
+    info!("process_tcp_stream peer_addr = {}", stream.peer_addr()?);
+
+    let (reader, writer) = &mut (&stream, &stream);
+
+    loop {
+        let mut request_length_buffer = [0u8; 2];
+        reader.read_exact(&mut request_length_buffer).await?;
+
+        let request_length = u16::from_be_bytes(request_length_buffer);
+        info!("request_length = {}", request_length);
+
+        let mut request_buffer = vec![0u8; usize::from(request_length)];
+        reader.read_exact(&mut request_buffer).await?;
+
+        info!("read request_buffer len = {}", request_buffer.len());
+
+        let response_buffer = match process_request_packet_buffer(&request_buffer).await {
+            Some(response_buffer) => response_buffer,
+            None => {
+                warn!("got None response from process_request_packet_buffer");
+                continue;
+            }
+        };
+
+        let response_length = match u16::try_from(response_buffer.len()) {
+            Ok(len) => len,
+            Err(e) => {
+                warn!(
+                    "response_buffer.len overflow {}: {}",
+                    response_buffer.len(),
+                    e
+                );
+                break;
+            }
+        };
+
+        let response_length_buffer = response_length.to_be_bytes();
+
+        writer.write_all(&response_length_buffer).await?;
+
+        writer.write_all(&response_buffer).await?;
+    }
+
+    Ok(())
+}
+
+async fn run_tcp_server() -> io::Result<()> {
+    let listener = TcpListener::bind("127.0.0.1:10053").await?;
+
+    info!("Listening on tcp {}", listener.local_addr()?);
+
+    let mut incoming = listener.incoming();
+
+    while let Some(stream) = incoming.next().await {
+        let stream = stream?;
+        task::spawn(process_tcp_stream(stream));
+    }
+    Ok(())
+}
+
 async fn run_server() -> io::Result<()> {
+    task::spawn(run_tcp_server());
+
     let socket = Arc::new(UdpSocket::bind("127.0.0.1:10053").await?);
 
-    info!("Listening on {}", socket.local_addr()?);
+    info!("Listening on udp {}", socket.local_addr()?);
 
     loop {
         let mut buf = vec![0u8; 2048];
