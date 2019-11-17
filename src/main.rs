@@ -260,6 +260,7 @@ impl DOHProxy {
         }
     }
 }
+
 fn main() -> io::Result<()> {
     env_logger::init();
 
