@@ -271,15 +271,8 @@ impl DOHProxy {
         }
     }
 
-    pub async fn run_server(self: Arc<Self>) -> Result<(), Box<dyn Error>> {
-        info!("begin run_server");
-
-        let self_clone = Arc::clone(&self);
-        tokio::spawn(async move {
-            if let Err(e) = self_clone.run_tcp_server().await {
-                warn!("run_tcp_server returned error {}", e);
-            }
-        });
+    async fn run_udp_server(self: Arc<Self>) -> Result<(), Box<dyn Error>> {
+        info!("begin run_udp_server");
 
         let (response_sender, response_receiver) = mpsc::unbounded_channel::<UDPResponseMessage>();
 
@@ -304,6 +297,19 @@ impl DOHProxy {
                 peer,
             ));
         }
+    }
+
+    pub async fn run_server(self: Arc<Self>) -> Result<(), Box<dyn Error>> {
+        info!("begin run_server");
+
+        let self_clone = Arc::clone(&self);
+        tokio::spawn(async move {
+            if let Err(e) = self_clone.run_tcp_server().await {
+                warn!("run_tcp_server returned error {}", e);
+            }
+        });
+
+        self.run_udp_server().await
     }
 }
 
