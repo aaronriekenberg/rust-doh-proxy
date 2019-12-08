@@ -1,11 +1,10 @@
-use async_std::io;
-use async_std::net::{TcpListener, TcpStream, UdpSocket};
-use async_std::prelude::*;
-use async_std::task;
-
 use log::{info, warn};
 
-use std::convert::TryFrom;
+use tokio::net::udp::SendHalf;
+use tokio::net::UdpSocket;
+use tokio::sync::mpsc;
+
+use std::error::Error;
 use std::sync::Arc;
 
 use trust_dns_proto::error::ProtoResult;
@@ -18,6 +17,8 @@ enum DOHResponse {
 }
 
 pub struct DOHProxy;
+
+struct UDPResponseMessage(Vec<u8>, std::net::SocketAddr);
 
 impl DOHProxy {
     pub fn new() -> Arc<Self> {
@@ -74,12 +75,13 @@ impl DOHProxy {
     ) -> Result<DOHResponse, surf::Exception> {
         info!("make_doh_request");
 
-        info!("before surf post");
+        let length_value = request_buffer.len().to_string();
 
-        let mut response = surf::post("https://dns.google/dns-query")
+        let mut response = surf::post("https://cloudflare-dns.com/dns-query")
             .body_bytes(request_buffer)
-            .set_header("content-type", "application/dns-message")
-            .set_header("accept", "application/dns-message")
+            .set_header("Content-Length", length_value)
+            .set_header("Content-Type", "application/dns-message")
+            .set_header("Accept", "application/dns-message")
             .await?;
 
         info!("after surf post response status = {}", response.status());
@@ -117,6 +119,7 @@ impl DOHProxy {
         let mut doh_request_message = request_message.clone();
         doh_request_message.set_id(0);
         let doh_request_message = doh_request_message;
+
         let request_buffer = match self.encode_dns_message(&doh_request_message) {
             Err(e) => {
                 warn!("encode_dns_message error {}", e);
@@ -168,7 +171,7 @@ impl DOHProxy {
 
     async fn process_udp_packet(
         self: Arc<Self>,
-        socket: Arc<UdpSocket>,
+        response_sender: mpsc::UnboundedSender<UDPResponseMessage>,
         request_buffer: Vec<u8>,
         request_bytes_received: usize,
         peer: std::net::SocketAddr,
@@ -177,82 +180,116 @@ impl DOHProxy {
             .process_request_packet_buffer(&request_buffer[..request_bytes_received])
             .await
         {
-            Some(response_buffer) => match socket.send_to(&response_buffer, peer).await {
-                Err(e) => warn!("send_to error {}", e),
-                Ok(bytes_written) => info!("send_to success bytes_written = {}", bytes_written),
-            },
+            Some(response_buffer) => {
+                let response_message = UDPResponseMessage(response_buffer, peer);
+                match response_sender.send(response_message) {
+                    Err(e) => warn!("response_sender.send error {}", e),
+                    Ok(_) => info!("response_sender.send success"),
+                }
+            }
             None => warn!("got None response from process_request_packet_buffer"),
         }
     }
 
-    async fn process_tcp_stream(self: Arc<Self>, stream: TcpStream) -> io::Result<()> {
-        info!("process_tcp_stream peer_addr = {}", stream.peer_addr()?);
+    // async fn process_tcp_stream(self: Arc<Self>, stream: TcpStream) -> io::Result<()> {
+    //     info!("process_tcp_stream peer_addr = {}", stream.peer_addr()?);
+    //
+    //     let (reader, writer) = &mut (&stream, &stream);
+    //
+    //     loop {
+    //         let mut buffer = [0u8; 2];
+    //         reader.read_exact(&mut buffer).await?;
+    //
+    //         let length = u16::from_be_bytes(buffer);
+    //         info!("request length = {}", length);
+    //
+    //         let mut buffer = vec![0u8; usize::from(length)];
+    //         reader.read_exact(&mut buffer).await?;
+    //
+    //         info!("read request buffer len = {}", buffer.len());
+    //
+    //         let buffer = match self.process_request_packet_buffer(&buffer).await {
+    //             Some(buffer) => buffer,
+    //             None => {
+    //                 warn!("got None response from process_request_packet_buffer");
+    //                 continue;
+    //             }
+    //         };
+    //
+    //         let length = match u16::try_from(buffer.len()) {
+    //             Ok(len) => len,
+    //             Err(e) => {
+    //                 warn!("response buffer.len overflow {}: {}", buffer.len(), e);
+    //                 break;
+    //             }
+    //         };
+    //
+    //         writer.write_all(&length.to_be_bytes()).await?;
+    //
+    //         writer.write_all(&buffer).await?;
+    //     }
+    //
+    //     Ok(())
+    // }
 
-        let (reader, writer) = &mut (&stream, &stream);
+    // async fn run_tcp_server(self: Arc<Self>) -> io::Result<()> {
+    //     let listener = TcpListener::bind("127.0.0.1:10053").await?;
+    //
+    //     info!("Listening on tcp {}", listener.local_addr()?);
+    //
+    //     let mut incoming = listener.incoming();
+    //
+    //     while let Some(stream) = incoming.next().await {
+    //         let stream = stream?;
+    //         task::spawn(Arc::clone(&self).process_tcp_stream(stream));
+    //     }
+    //     Ok(())
+    // }
 
+    async fn run_udp_response_sender(
+        self: Arc<Self>,
+        mut response_receiver: mpsc::UnboundedReceiver<UDPResponseMessage>,
+        mut socket_send_half: SendHalf,
+    ) {
+        info!("begin run_udp_response_sender");
         loop {
-            let mut buffer = [0u8; 2];
-            reader.read_exact(&mut buffer).await?;
-
-            let length = u16::from_be_bytes(buffer);
-            info!("request length = {}", length);
-
-            let mut buffer = vec![0u8; usize::from(length)];
-            reader.read_exact(&mut buffer).await?;
-
-            info!("read request buffer len = {}", buffer.len());
-
-            let buffer = match self.process_request_packet_buffer(&buffer).await {
-                Some(buffer) => buffer,
+            match response_receiver.recv().await {
                 None => {
-                    warn!("got None response from process_request_packet_buffer");
-                    continue;
-                }
-            };
-
-            let length = match u16::try_from(buffer.len()) {
-                Ok(len) => len,
-                Err(e) => {
-                    warn!("response buffer.len overflow {}: {}", buffer.len(), e);
+                    info!("received none");
                     break;
                 }
-            };
-
-            writer.write_all(&length.to_be_bytes()).await?;
-
-            writer.write_all(&buffer).await?;
+                Some(msg) => {
+                    info!("received msg");
+                    match socket_send_half.send_to(&msg.0, &msg.1).await {
+                        Ok(bytes_sent) => info!("send_to success bytes_sent {}", bytes_sent),
+                        Err(e) => warn!("send_to error {}", e),
+                    }
+                }
+            }
         }
-
-        Ok(())
     }
 
-    async fn run_tcp_server(self: Arc<Self>) -> io::Result<()> {
-        let listener = TcpListener::bind("127.0.0.1:10053").await?;
+    pub async fn run_server(self: Arc<Self>) -> Result<(), Box<dyn Error>> {
+        // task::spawn(Arc::clone(&self).run_tcp_server());
 
-        info!("Listening on tcp {}", listener.local_addr()?);
+        let (response_sender, response_receiver) = mpsc::unbounded_channel::<UDPResponseMessage>();
 
-        let mut incoming = listener.incoming();
-
-        while let Some(stream) = incoming.next().await {
-            let stream = stream?;
-            task::spawn(Arc::clone(&self).process_tcp_stream(stream));
-        }
-        Ok(())
-    }
-
-    pub async fn run_server(self: Arc<Self>) -> io::Result<()> {
-        task::spawn(Arc::clone(&self).run_tcp_server());
-
-        let socket = Arc::new(UdpSocket::bind("127.0.0.1:10053").await?);
+        let socket = UdpSocket::bind("127.0.0.1:10053").await?;
 
         info!("Listening on udp {}", socket.local_addr()?);
 
+        let (mut socket_recv_half, socket_send_half) = socket.split();
+
+        tokio::spawn(
+            Arc::clone(&self).run_udp_response_sender(response_receiver, socket_send_half),
+        );
+
         loop {
             let mut buf = vec![0u8; 2048];
-            let (bytes_received, peer) = socket.recv_from(&mut buf).await?;
+            let (bytes_received, peer) = socket_recv_half.recv_from(&mut buf).await?;
 
-            task::spawn(Arc::clone(&self).process_udp_packet(
-                Arc::clone(&socket),
+            tokio::spawn(Arc::clone(&self).process_udp_packet(
+                response_sender.clone(),
                 buf,
                 bytes_received,
                 peer,
@@ -261,12 +298,11 @@ impl DOHProxy {
     }
 }
 
-fn main() -> io::Result<()> {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
 
     let doh_proxy = DOHProxy::new();
 
-    let server_future = doh_proxy.run_server();
-
-    task::block_on(server_future)
+    doh_proxy.run_server().await
 }
