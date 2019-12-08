@@ -1,9 +1,10 @@
-use log::{info, warn};
+use log::{debug, info, warn};
 
-use tokio::net::udp::SendHalf;
-use tokio::net::UdpSocket;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::{udp::SendHalf, TcpListener, TcpStream, UdpSocket};
 use tokio::sync::mpsc;
 
+use std::convert::TryFrom;
 use std::error::Error;
 use std::sync::Arc;
 
@@ -191,60 +192,61 @@ impl DOHProxy {
         }
     }
 
-    // async fn process_tcp_stream(self: Arc<Self>, stream: TcpStream) -> io::Result<()> {
-    //     info!("process_tcp_stream peer_addr = {}", stream.peer_addr()?);
-    //
-    //     let (reader, writer) = &mut (&stream, &stream);
-    //
-    //     loop {
-    //         let mut buffer = [0u8; 2];
-    //         reader.read_exact(&mut buffer).await?;
-    //
-    //         let length = u16::from_be_bytes(buffer);
-    //         info!("request length = {}", length);
-    //
-    //         let mut buffer = vec![0u8; usize::from(length)];
-    //         reader.read_exact(&mut buffer).await?;
-    //
-    //         info!("read request buffer len = {}", buffer.len());
-    //
-    //         let buffer = match self.process_request_packet_buffer(&buffer).await {
-    //             Some(buffer) => buffer,
-    //             None => {
-    //                 warn!("got None response from process_request_packet_buffer");
-    //                 continue;
-    //             }
-    //         };
-    //
-    //         let length = match u16::try_from(buffer.len()) {
-    //             Ok(len) => len,
-    //             Err(e) => {
-    //                 warn!("response buffer.len overflow {}: {}", buffer.len(), e);
-    //                 break;
-    //             }
-    //         };
-    //
-    //         writer.write_all(&length.to_be_bytes()).await?;
-    //
-    //         writer.write_all(&buffer).await?;
-    //     }
-    //
-    //     Ok(())
-    // }
+    async fn process_tcp_stream(
+        self: Arc<Self>,
+        mut stream: TcpStream,
+    ) -> Result<(), Box<dyn Error>> {
+        info!("process_tcp_stream peer_addr = {}", stream.peer_addr()?);
 
-    // async fn run_tcp_server(self: Arc<Self>) -> io::Result<()> {
-    //     let listener = TcpListener::bind("127.0.0.1:10053").await?;
-    //
-    //     info!("Listening on tcp {}", listener.local_addr()?);
-    //
-    //     let mut incoming = listener.incoming();
-    //
-    //     while let Some(stream) = incoming.next().await {
-    //         let stream = stream?;
-    //         task::spawn(Arc::clone(&self).process_tcp_stream(stream));
-    //     }
-    //     Ok(())
-    // }
+        loop {
+            let mut buffer = [0u8; 2];
+            stream.read_exact(&mut buffer).await?;
+            let length = u16::from_be_bytes(buffer);
+            info!("request length = {}", length);
+
+            let mut buffer = vec![0u8; usize::from(length)];
+            stream.read_exact(&mut buffer).await?;
+            info!("read request buffer len = {}", buffer.len());
+
+            let buffer = match self.process_request_packet_buffer(&buffer).await {
+                Some(buffer) => buffer,
+                None => {
+                    warn!("got None response from process_request_packet_buffer");
+                    continue;
+                }
+            };
+
+            let length = match u16::try_from(buffer.len()) {
+                Ok(len) => len,
+                Err(e) => {
+                    warn!("response buffer.len overflow {}: {}", buffer.len(), e);
+                    break;
+                }
+            };
+
+            stream.write_all(&length.to_be_bytes()).await?;
+            stream.write_all(&buffer).await?;
+        }
+
+        Ok(())
+    }
+
+    async fn run_tcp_server(self: Arc<Self>) -> Result<(), Box<dyn Error>> {
+        info!("begin run_tcp_server");
+
+        let mut listener = TcpListener::bind("127.0.0.1:10053").await?;
+        info!("Listening on tcp {}", listener.local_addr()?);
+
+        loop {
+            let (stream, _) = listener.accept().await?;
+            let self_clone = Arc::clone(&self);
+            tokio::spawn(async move {
+                if let Err(e) = self_clone.process_tcp_stream(stream).await {
+                    debug!("process_tcp_stream returnd error {}", e);
+                }
+            });
+        }
+    }
 
     async fn run_udp_response_sender(
         self: Arc<Self>,
@@ -270,7 +272,14 @@ impl DOHProxy {
     }
 
     pub async fn run_server(self: Arc<Self>) -> Result<(), Box<dyn Error>> {
-        // task::spawn(Arc::clone(&self).run_tcp_server());
+        info!("begin run_server");
+
+        let self_clone = Arc::clone(&self);
+        tokio::spawn(async move {
+            if let Err(e) = self_clone.run_tcp_server().await {
+                warn!("run_tcp_server returned error {}", e);
+            }
+        });
 
         let (response_sender, response_receiver) = mpsc::unbounded_channel::<UDPResponseMessage>();
 
