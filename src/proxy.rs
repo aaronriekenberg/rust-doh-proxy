@@ -337,8 +337,8 @@ impl DOHProxy {
         Some(response_buffer)
     }
 
-    pub async fn run_server(self: Arc<Self>) -> Result<(), Box<dyn Error>> {
-        info!("begin run_server");
+    pub async fn run(self: Arc<Self>) -> Result<(), Box<dyn Error>> {
+        info!("begin DOHProxy.run");
 
         let tcp_server = TCPServer::new(Arc::clone(&self));
         tokio::spawn(async move {

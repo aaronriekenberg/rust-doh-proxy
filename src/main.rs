@@ -8,5 +8,5 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let doh_proxy = proxy::DOHProxy::new();
 
-    doh_proxy.run_server().await
+    doh_proxy.run().await
 }
