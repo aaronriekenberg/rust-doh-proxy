@@ -184,28 +184,6 @@ impl DOHProxy {
         Some(response_buffer)
     }
 
-    async fn process_udp_packet(
-        self: Arc<Self>,
-        response_sender: mpsc::UnboundedSender<UDPResponseMessage>,
-        request_buffer: Vec<u8>,
-        request_bytes_received: usize,
-        peer: std::net::SocketAddr,
-    ) {
-        match self
-            .process_request_packet_buffer(&request_buffer[..request_bytes_received])
-            .await
-        {
-            Some(response_buffer) => {
-                let response_message = UDPResponseMessage(response_buffer, peer);
-                match response_sender.send(response_message) {
-                    Err(e) => warn!("response_sender.send error {}", e),
-                    Ok(_) => info!("response_sender.send success"),
-                }
-            }
-            None => warn!("got None response from process_request_packet_buffer"),
-        }
-    }
-
     async fn process_tcp_stream(
         self: Arc<Self>,
         mut stream: TcpStream,
@@ -259,6 +237,28 @@ impl DOHProxy {
                     debug!("process_tcp_stream returnd error {}", e);
                 }
             });
+        }
+    }
+
+    async fn process_udp_packet(
+        self: Arc<Self>,
+        response_sender: mpsc::UnboundedSender<UDPResponseMessage>,
+        request_buffer: Vec<u8>,
+        request_bytes_received: usize,
+        peer: std::net::SocketAddr,
+    ) {
+        match self
+            .process_request_packet_buffer(&request_buffer[..request_bytes_received])
+            .await
+        {
+            Some(response_buffer) => {
+                let response_message = UDPResponseMessage(response_buffer, peer);
+                match response_sender.send(response_message) {
+                    Err(e) => warn!("response_sender.send error {}", e),
+                    Ok(_) => info!("response_sender.send success"),
+                }
+            }
+            None => warn!("got None response from process_request_packet_buffer"),
         }
     }
 
