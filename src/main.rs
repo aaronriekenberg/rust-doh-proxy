@@ -1,4 +1,4 @@
-mod proxy;
+mod doh;
 
 use std::error::Error;
 
@@ -6,7 +6,7 @@ use std::error::Error;
 async fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
 
-    let doh_proxy = proxy::DOHProxy::new();
+    let doh_proxy = doh::proxy::DOHProxy::new();
 
     doh_proxy.run().await
 }

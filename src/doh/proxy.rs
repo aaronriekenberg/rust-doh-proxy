@@ -1,5 +1,3 @@
-use bytes::Buf;
-
 use log::{debug, info, warn};
 
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -14,18 +12,8 @@ use trust_dns_proto::error::ProtoResult;
 use trust_dns_proto::op::Message;
 use trust_dns_proto::serialize::binary::{BinDecodable, BinDecoder, BinEncodable, BinEncoder};
 
-enum DOHResponse {
-    HTTPRequestError,
-    HTTPRequestSuccess(Vec<u8>),
-}
-
-type HyperClient = hyper::client::Client<
-    hyper_tls::HttpsConnector<hyper::client::connect::HttpConnector>,
-    hyper::Body,
->;
-
 pub struct DOHProxy {
-    hyper_client: HyperClient,
+    doh_client: crate::doh::client::DOHClient,
 }
 
 struct TCPServer {
@@ -182,10 +170,8 @@ impl UDPServer {
 
 impl DOHProxy {
     pub fn new() -> Arc<Self> {
-        let https = hyper_tls::HttpsConnector::new();
-
         Arc::new(DOHProxy {
-            hyper_client: hyper::Client::builder().build::<_, hyper::Body>(https),
+            doh_client: crate::doh::client::DOHClient::new(),
         })
     }
 
@@ -233,32 +219,6 @@ impl DOHProxy {
         }
     }
 
-    async fn make_doh_request(
-        &self,
-        request_buffer: Vec<u8>,
-    ) -> Result<DOHResponse, Box<dyn Error>> {
-        info!("make_doh_request");
-
-        let request = hyper::Request::builder()
-            .method("POST")
-            .uri("https://cloudflare-dns.com/dns-query")
-            .header("Content-Type", "application/dns-message")
-            .header("Accept", "application/dns-message")
-            .body(hyper::Body::from(request_buffer))?;
-
-        let response = self.hyper_client.request(request).await?;
-
-        info!("after hyper post response status = {}", response.status());
-
-        if response.status() != hyper::StatusCode::OK {
-            return Ok(DOHResponse::HTTPRequestError);
-        }
-
-        let body = hyper::body::aggregate(response).await?;
-        let body_vec = body.bytes().to_vec();
-        Ok(DOHResponse::HTTPRequestSuccess(body_vec))
-    }
-
     async fn process_request_packet_buffer(&self, request_buffer: &[u8]) -> Option<Vec<u8>> {
         info!(
             "process_request_packet_buffer received {}",
@@ -296,7 +256,7 @@ impl DOHProxy {
             Ok(buffer) => buffer,
         };
 
-        let doh_response = match self.make_doh_request(request_buffer).await {
+        let doh_response = match self.doh_client.make_doh_request(request_buffer).await {
             Err(e) => {
                 warn!("make_doh_request error {}", e);
                 return self.build_failure_response(&request_message);
@@ -305,11 +265,11 @@ impl DOHProxy {
         };
 
         let response_buffer = match doh_response {
-            DOHResponse::HTTPRequestError => {
+            crate::doh::client::DOHResponse::HTTPRequestError => {
                 warn!("got http request error");
                 return self.build_failure_response(&request_message);
             }
-            DOHResponse::HTTPRequestSuccess(response_buffer) => response_buffer,
+            crate::doh::client::DOHResponse::HTTPRequestSuccess(response_buffer) => response_buffer,
         };
 
         info!("got response_buffer length = {}", response_buffer.len());
