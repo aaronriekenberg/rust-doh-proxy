@@ -100,7 +100,7 @@ impl DOHProxy {
 
         info!("after hyper post response status = {}", response.status());
 
-        if response.status() != 200 {
+        if response.status() != hyper::StatusCode::OK {
             return Ok(DOHResponse::HTTPRequestError);
         }
 
