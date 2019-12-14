@@ -19,13 +19,24 @@ enum DOHResponse {
     HTTPRequestSuccess(Vec<u8>),
 }
 
-pub struct DOHProxy;
+type HyperClient = hyper::client::Client<
+    hyper_tls::HttpsConnector<hyper::client::connect::HttpConnector>,
+    hyper::Body,
+>;
+
+pub struct DOHProxy {
+    hyper_client: HyperClient,
+}
 
 struct UDPResponseMessage(Vec<u8>, std::net::SocketAddr);
 
 impl DOHProxy {
     pub fn new() -> Arc<Self> {
-        Arc::new(DOHProxy)
+        let https = hyper_tls::HttpsConnector::new();
+
+        Arc::new(DOHProxy {
+            hyper_client: hyper::Client::builder().build::<_, hyper::Body>(https),
+        })
     }
 
     fn encode_dns_message(&self, message: &Message) -> ProtoResult<Vec<u8>> {
@@ -78,20 +89,14 @@ impl DOHProxy {
     ) -> Result<DOHResponse, Box<dyn Error>> {
         info!("make_doh_request");
 
-        let https = hyper_tls::HttpsConnector::new();
-        let client = hyper::Client::builder()
-            // .http2_only(true)
-            .build::<_, hyper::Body>(https);
-
         let request = hyper::Request::builder()
-            // .version(hyper::Version::HTTP_2)
             .method("POST")
             .uri("https://cloudflare-dns.com/dns-query")
             .header("Content-Type", "application/dns-message")
             .header("Accept", "application/dns-message")
             .body(hyper::Body::from(request_buffer))?;
 
-        let response = client.request(request).await?;
+        let response = self.hyper_client.request(request).await?;
 
         info!("after hyper post response status = {}", response.status());
 
