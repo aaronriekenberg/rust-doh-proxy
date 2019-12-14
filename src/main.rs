@@ -1,3 +1,5 @@
+use bytes::Buf;
+
 use log::{debug, info, warn};
 
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -73,26 +75,33 @@ impl DOHProxy {
     async fn make_doh_request(
         &self,
         request_buffer: Vec<u8>,
-    ) -> Result<DOHResponse, surf::Exception> {
+    ) -> Result<DOHResponse, Box<dyn Error>> {
         info!("make_doh_request");
 
-        let length_value = request_buffer.len().to_string();
+        let https = hyper_tls::HttpsConnector::new();
+        let client = hyper::Client::builder()
+            // .http2_only(true)
+            .build::<_, hyper::Body>(https);
 
-        let mut response = surf::post("https://cloudflare-dns.com/dns-query")
-            .body_bytes(request_buffer)
-            .set_header("Content-Length", length_value)
-            .set_header("Content-Type", "application/dns-message")
-            .set_header("Accept", "application/dns-message")
-            .await?;
+        let request = hyper::Request::builder()
+            // .version(hyper::Version::HTTP_2)
+            .method("POST")
+            .uri("https://cloudflare-dns.com/dns-query")
+            .header("Content-Type", "application/dns-message")
+            .header("Accept", "application/dns-message")
+            .body(hyper::Body::from(request_buffer))?;
 
-        info!("after surf post response status = {}", response.status());
+        let response = client.request(request).await?;
+
+        info!("after hyper post response status = {}", response.status());
 
         if response.status() != 200 {
             return Ok(DOHResponse::HTTPRequestError);
         }
 
-        let response_buffer = response.body_bytes().await?;
-        Ok(DOHResponse::HTTPRequestSuccess(response_buffer))
+        let body = hyper::body::aggregate(response).await?;
+        let body_vec = body.bytes().to_vec();
+        Ok(DOHResponse::HTTPRequestSuccess(body_vec))
     }
 
     async fn process_request_packet_buffer(&self, request_buffer: &[u8]) -> Option<Vec<u8>> {

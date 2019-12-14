@@ -7,9 +7,11 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+bytes = "0.5"
 env_logger = "0.7"
 futures = "0.3"
+hyper = "0.13"
+hyper-tls = "0.4"
 log = "0.4"
-surf = "1.0"
 tokio = { version = "0.2", features = ["full"] }
 trust-dns-proto = "0.8"
