@@ -124,7 +124,10 @@ impl DOHProxy {
             Ok(message) => message,
         };
 
-        // info!("parsed udp dns packet {:#?}", request_message);
+        debug!(
+            "process_request_packet_buffer request_message {:#?}",
+            request_message
+        );
 
         if request_message.queries().len() < 1 {
             info!("request_message.queries is empty");
