@@ -13,7 +13,7 @@ pub fn get_cache_key(message: &Message) -> String {
         if !first {
             key.push('|');
         }
-        key.push_str(&query.name().to_string());
+        key.push_str(&query.name().to_string().to_lowercase());
         key.push(':');
         key.push_str(&u16::from(query.query_type()).to_string());
         key.push(':');
