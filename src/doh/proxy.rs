@@ -100,7 +100,7 @@ impl DOHProxy {
             request_message
         );
 
-        if request_message.queries().len() < 1 {
+        if request_message.queries().is_empty() {
             info!("request_message.queries is empty");
             return self.build_failure_response(&request_message);
         }
