@@ -2,7 +2,7 @@ use tokio::sync::Mutex;
 
 use trust_dns_proto::op::Message;
 
-use std::borrow::BorrowMut;
+use std::borrow::{Borrow, BorrowMut};
 use std::collections::HashMap;
 
 pub fn get_cache_key(message: &Message) -> String {
@@ -24,8 +24,9 @@ pub fn get_cache_key(message: &Message) -> String {
     key
 }
 
+#[derive(Clone)]
 pub struct CacheObject {
-    message: Message,
+    pub message: Message,
 }
 
 impl CacheObject {
@@ -45,11 +46,24 @@ impl Cache {
         }
     }
 
-    pub async fn put(&self, key: String, cacheObject: CacheObject) {
+    pub async fn get(&self, key: &String) -> Option<CacheObject> {
+        let guard = self.map.lock().await;
+
+        let map = guard.borrow();
+
+        match map.get(key) {
+            Some(v) => Some(v.clone()),
+            None => None,
+        }
+    }
+
+    pub async fn put(&self, key: String, cache_object: CacheObject) -> usize {
         let mut guard = self.map.lock().await;
 
         let mut_map = guard.borrow_mut();
 
-        mut_map.insert(key, cacheObject);
+        mut_map.insert(key, cache_object);
+
+        mut_map.len()
     }
 }
