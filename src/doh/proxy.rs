@@ -81,6 +81,44 @@ impl DOHProxy {
         }
     }
 
+    async fn make_doh_request(&self, doh_request_message: Message) -> Option<Message> {
+        let request_buffer = match self.encode_dns_message(&doh_request_message) {
+            Err(e) => {
+                warn!("encode_dns_message error {}", e);
+                return None;
+            }
+            Ok(buffer) => buffer,
+        };
+
+        let doh_response = match self.doh_client.make_doh_request(request_buffer).await {
+            Err(e) => {
+                warn!("make_doh_request error {}", e);
+                return None;
+            }
+            Ok(doh_response) => doh_response,
+        };
+
+        let response_buffer = match doh_response {
+            crate::doh::client::DOHResponse::HTTPRequestError => {
+                warn!("got http request error");
+                return None;
+            }
+            crate::doh::client::DOHResponse::HTTPRequestSuccess(response_buffer) => response_buffer,
+        };
+
+        info!("got response_buffer length = {}", response_buffer.len());
+
+        let response_message = match self.decode_dns_message_vec(response_buffer) {
+            Err(e) => {
+                warn!("decode_dns_message error {}", e);
+                return None;
+            }
+            Ok(message) => message,
+        };
+
+        Some(response_message)
+    }
+
     async fn process_request_message(&self, request_message: &Message) -> Message {
         if request_message.queries().is_empty() {
             info!("request_message.queries is empty");
@@ -100,40 +138,10 @@ impl DOHProxy {
 
         let mut doh_request_message = request_message.clone();
         doh_request_message.set_id(0);
-        let doh_request_message = doh_request_message;
 
-        let request_buffer = match self.encode_dns_message(&doh_request_message) {
-            Err(e) => {
-                warn!("encode_dns_message error {}", e);
-                return self.build_failure_response_message(&request_message);
-            }
-            Ok(buffer) => buffer,
-        };
-
-        let doh_response = match self.doh_client.make_doh_request(request_buffer).await {
-            Err(e) => {
-                warn!("make_doh_request error {}", e);
-                return self.build_failure_response_message(&request_message);
-            }
-            Ok(doh_response) => doh_response,
-        };
-
-        let response_buffer = match doh_response {
-            crate::doh::client::DOHResponse::HTTPRequestError => {
-                warn!("got http request error");
-                return self.build_failure_response_message(&request_message);
-            }
-            crate::doh::client::DOHResponse::HTTPRequestSuccess(response_buffer) => response_buffer,
-        };
-
-        info!("got response_buffer length = {}", response_buffer.len());
-
-        let mut response_message = match self.decode_dns_message_vec(response_buffer) {
-            Err(e) => {
-                warn!("decode_dns_message error {}", e);
-                return self.build_failure_response_message(&request_message);
-            }
-            Ok(message) => message,
+        let response_message = match self.make_doh_request(doh_request_message).await {
+            None => return self.build_failure_response_message(&request_message),
+            Some(response_message) => response_message,
         };
 
         if (cache_key.len() > 0)
@@ -151,6 +159,7 @@ impl DOHProxy {
 
         // info!("response_message = {:#?}", response_message);
 
+        let mut response_message = response_message;
         response_message.set_id(request_message.header().id());
 
         response_message
