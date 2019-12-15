@@ -48,8 +48,8 @@ impl Cache {
     pub async fn put(&self, key: String, cacheObject: CacheObject) {
         let mut guard = self.map.lock().await;
 
-        let map = guard.borrow_mut();
+        let mut_map = guard.borrow_mut();
 
-        map.insert(key, cacheObject);
+        mut_map.insert(key, cacheObject);
     }
 }
