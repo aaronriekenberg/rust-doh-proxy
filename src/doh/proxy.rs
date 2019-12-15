@@ -1,3 +1,6 @@
+use crate::doh::cache::Cache;
+use crate::doh::client::DOHClient;
+
 use log::{debug, info, warn};
 
 use std::error::Error;
@@ -8,13 +11,15 @@ use trust_dns_proto::op::Message;
 use trust_dns_proto::serialize::binary::{BinDecodable, BinDecoder, BinEncodable, BinEncoder};
 
 pub struct DOHProxy {
-    doh_client: crate::doh::client::DOHClient,
+    cache: Cache,
+    doh_client: DOHClient,
 }
 
 impl DOHProxy {
     pub fn new() -> Arc<Self> {
         Arc::new(DOHProxy {
-            doh_client: crate::doh::client::DOHClient::new(),
+            cache: Cache::new(),
+            doh_client: DOHClient::new(),
         })
     }
 
@@ -89,6 +94,9 @@ impl DOHProxy {
             info!("request_message.queries is empty");
             return self.build_failure_response(&request_message);
         }
+
+        let cache_key = crate::doh::cache::get_cache_key(&request_message);
+        info!("cache_key = '{}'", cache_key);
 
         let mut doh_request_message = request_message.clone();
         doh_request_message.set_id(0);
