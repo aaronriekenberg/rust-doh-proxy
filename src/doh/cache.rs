@@ -45,7 +45,7 @@ impl Cache {
         }
     }
 
-    pub async fn put(&mut self, key: String, cacheObject: CacheObject) {
+    pub async fn put(&self, key: String, cacheObject: CacheObject) {
         let mut guard = self.map.lock().await;
 
         let map = guard.borrow_mut();
