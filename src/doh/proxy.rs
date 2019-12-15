@@ -64,18 +64,96 @@ impl DOHProxy {
         }
     }
 
-    fn build_failure_response(&self, request: &Message) -> Option<Vec<u8>> {
+    fn build_failure_response_message(&self, request: &Message) -> Message {
         let mut response_message = request.clone();
         response_message.set_message_type(trust_dns_proto::op::MessageType::Response);
         response_message.set_response_code(trust_dns_proto::op::ResponseCode::ServFail);
+        response_message
+    }
 
-        match self.encode_dns_message(&response_message) {
+    fn build_failure_response_buffer(&self, request: &Message) -> Option<Vec<u8>> {
+        match self.encode_dns_message(&self.build_failure_response_message(request)) {
             Err(e) => {
-                warn!("encode_dns_message error {}", e);
+                warn!("build_failure_response_buffer encode error {}", e);
                 None
             }
             Ok(buffer) => Some(buffer),
         }
+    }
+
+    async fn process_request_message(&self, request_message: &Message) -> Message {
+        if request_message.queries().is_empty() {
+            info!("request_message.queries is empty");
+            return self.build_failure_response_message(&request_message);
+        }
+
+        let cache_key = get_cache_key(&request_message);
+        info!("cache_key = '{}'", cache_key);
+
+        if let Some(mut cache_object) = self.cache.get(&cache_key).await {
+            info!("cache hit");
+
+            cache_object.message.set_id(request_message.header().id());
+
+            return cache_object.message;
+        }
+
+        let mut doh_request_message = request_message.clone();
+        doh_request_message.set_id(0);
+        let doh_request_message = doh_request_message;
+
+        let request_buffer = match self.encode_dns_message(&doh_request_message) {
+            Err(e) => {
+                warn!("encode_dns_message error {}", e);
+                return self.build_failure_response_message(&request_message);
+            }
+            Ok(buffer) => buffer,
+        };
+
+        let doh_response = match self.doh_client.make_doh_request(request_buffer).await {
+            Err(e) => {
+                warn!("make_doh_request error {}", e);
+                return self.build_failure_response_message(&request_message);
+            }
+            Ok(doh_response) => doh_response,
+        };
+
+        let response_buffer = match doh_response {
+            crate::doh::client::DOHResponse::HTTPRequestError => {
+                warn!("got http request error");
+                return self.build_failure_response_message(&request_message);
+            }
+            crate::doh::client::DOHResponse::HTTPRequestSuccess(response_buffer) => response_buffer,
+        };
+
+        info!("got response_buffer length = {}", response_buffer.len());
+
+        let mut response_message = match self.decode_dns_message_vec(response_buffer) {
+            Err(e) => {
+                warn!("decode_dns_message error {}", e);
+                return self.build_failure_response_message(&request_message);
+            }
+            Ok(message) => message,
+        };
+
+        if (cache_key.len() > 0)
+            && ((response_message.response_code() == trust_dns_proto::op::ResponseCode::NoError)
+                || (response_message.response_code()
+                    == trust_dns_proto::op::ResponseCode::NXDomain))
+        {
+            info!("caching response");
+            let new_cache_size = self
+                .cache
+                .put(cache_key, CacheObject::new(response_message.clone()))
+                .await;
+            info!("new_cache_size = {}", new_cache_size);
+        }
+
+        // info!("response_message = {:#?}", response_message);
+
+        response_message.set_id(request_message.header().id());
+
+        response_message
     }
 
     pub(in crate::doh) async fn process_request_packet_buffer(
@@ -100,93 +178,15 @@ impl DOHProxy {
             request_message
         );
 
-        if request_message.queries().is_empty() {
-            info!("request_message.queries is empty");
-            return self.build_failure_response(&request_message);
+        let response_message = self.process_request_message(&request_message).await;
+
+        match self.encode_dns_message(&response_message) {
+            Err(e) => {
+                warn!("encode_dns_message response error {}", e);
+                self.build_failure_response_buffer(&request_message)
+            }
+            Ok(buffer) => Some(buffer),
         }
-
-        let cache_key = get_cache_key(&request_message);
-        info!("cache_key = '{}'", cache_key);
-
-        if let Some(mut cache_object) = self.cache.get(&cache_key).await {
-            info!("cache hit");
-
-            cache_object.message.set_id(request_message.header().id());
-
-            let response_buffer = match self.encode_dns_message(&cache_object.message) {
-                Err(e) => {
-                    warn!("encode_dns_message error {}", e);
-                    return self.build_failure_response(&request_message);
-                }
-                Ok(buffer) => buffer,
-            };
-
-            return Some(response_buffer);
-        }
-
-        let mut doh_request_message = request_message.clone();
-        doh_request_message.set_id(0);
-        let doh_request_message = doh_request_message;
-
-        let request_buffer = match self.encode_dns_message(&doh_request_message) {
-            Err(e) => {
-                warn!("encode_dns_message error {}", e);
-                return self.build_failure_response(&request_message);
-            }
-            Ok(buffer) => buffer,
-        };
-
-        let doh_response = match self.doh_client.make_doh_request(request_buffer).await {
-            Err(e) => {
-                warn!("make_doh_request error {}", e);
-                return self.build_failure_response(&request_message);
-            }
-            Ok(doh_response) => doh_response,
-        };
-
-        let response_buffer = match doh_response {
-            crate::doh::client::DOHResponse::HTTPRequestError => {
-                warn!("got http request error");
-                return self.build_failure_response(&request_message);
-            }
-            crate::doh::client::DOHResponse::HTTPRequestSuccess(response_buffer) => response_buffer,
-        };
-
-        info!("got response_buffer length = {}", response_buffer.len());
-
-        let mut response_message = match self.decode_dns_message_vec(response_buffer) {
-            Err(e) => {
-                warn!("decode_dns_message error {}", e);
-                return self.build_failure_response(&request_message);
-            }
-            Ok(message) => message,
-        };
-
-        if (response_message.response_code() == trust_dns_proto::op::ResponseCode::NoError)
-            || (response_message.response_code() == trust_dns_proto::op::ResponseCode::NXDomain)
-        {
-            info!("caching response");
-            let cache_key = get_cache_key(&response_message);
-            let new_cache_size = self
-                .cache
-                .put(cache_key, CacheObject::new(response_message.clone()))
-                .await;
-            info!("new_cache_size = {}", new_cache_size);
-        }
-
-        // info!("response_message = {:#?}", response_message);
-
-        response_message.set_id(request_message.header().id());
-
-        let response_buffer = match self.encode_dns_message(&response_message) {
-            Err(e) => {
-                warn!("encode_dns_message error {}", e);
-                return self.build_failure_response(&request_message);
-            }
-            Ok(buffer) => buffer,
-        };
-
-        Some(response_buffer)
     }
 
     pub async fn run(self: Arc<Self>) -> Result<(), Box<dyn Error>> {
