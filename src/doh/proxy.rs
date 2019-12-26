@@ -32,7 +32,7 @@ impl DOHProxy {
         let mut encoder = BinEncoder::new(&mut request_buffer);
         match message.emit(&mut encoder) {
             Ok(()) => {
-                info!(
+                debug!(
                     "encoded message request_buffer.len = {}",
                     request_buffer.len()
                 );
@@ -109,7 +109,7 @@ impl DOHProxy {
             crate::doh::client::DOHResponse::HTTPRequestSuccess(response_buffer) => response_buffer,
         };
 
-        info!("got response_buffer length = {}", response_buffer.len());
+        debug!("got response_buffer length = {}", response_buffer.len());
 
         let response_message = match self.decode_dns_message_vec(response_buffer) {
             Err(e) => {
@@ -170,7 +170,6 @@ impl DOHProxy {
         }
 
         let min_ttl_seconds = self.clamp_and_get_min_ttl_seconds(&mut response_message);
-        info!("min_ttl_seconds = {}", min_ttl_seconds);
 
         if min_ttl_seconds == 0 {
             return response_message;
@@ -184,15 +183,13 @@ impl DOHProxy {
         let min_ttl_duration = Duration::from_secs(min_ttl_seconds.into());
         let expiration_time = now + min_ttl_duration;
 
-        info!("caching response");
-        let new_cache_size = self
-            .cache
+        self.cache
             .put(
                 cache_key,
                 CacheObject::new(response_message.clone(), now, expiration_time),
             )
             .await;
-        info!("new_cache_size = {}", new_cache_size);
+
         response_message
     }
 
@@ -207,7 +204,6 @@ impl DOHProxy {
         };
 
         if cache_object.expired() {
-            info!("cache_object is expired");
             return None;
         }
 
@@ -251,11 +247,8 @@ impl DOHProxy {
         }
 
         if !ok {
-            info!("ok = false");
             return None;
         }
-
-        info!("cache hit");
 
         cache_object.mut_message().set_id(request_id);
 
@@ -264,12 +257,11 @@ impl DOHProxy {
 
     async fn process_request_message(&self, request_message: &Message) -> Message {
         if request_message.queries().is_empty() {
-            info!("request_message.queries is empty");
+            warn!("request_message.queries is empty");
             return self.build_failure_response_message(&request_message);
         }
 
         let cache_key = get_cache_key(&request_message);
-        info!("cache_key = '{}'", cache_key);
 
         if let Some(response_message) = self
             .get_message_for_cache_hit(&cache_key, request_message.header().id())
@@ -298,7 +290,7 @@ impl DOHProxy {
         &self,
         request_buffer: &[u8],
     ) -> Option<Vec<u8>> {
-        info!(
+        debug!(
             "process_request_packet_buffer received {}",
             request_buffer.len()
         );

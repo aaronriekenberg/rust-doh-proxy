@@ -79,14 +79,12 @@ impl Cache {
         }
     }
 
-    pub async fn put(&self, key: String, cache_object: CacheObject) -> usize {
+    pub async fn put(&self, key: String, cache_object: CacheObject) {
         let mut guard = self.cache.lock().await;
 
         let mut_cache = guard.borrow_mut();
 
         mut_cache.put(key, cache_object);
-
-        mut_cache.len()
     }
 
     pub async fn len(&self) -> usize {

@@ -22,17 +22,15 @@ impl TCPServer {
         self: Arc<Self>,
         mut stream: TcpStream,
     ) -> Result<(), Box<dyn Error>> {
-        info!("process_tcp_stream peer_addr = {}", stream.peer_addr()?);
+        debug!("process_tcp_stream peer_addr = {}", stream.peer_addr()?);
 
         loop {
             let mut buffer = [0u8; 2];
             stream.read_exact(&mut buffer).await?;
             let length = u16::from_be_bytes(buffer);
-            info!("request length = {}", length);
 
             let mut buffer = vec![0u8; usize::from(length)];
             stream.read_exact(&mut buffer).await?;
-            info!("read request buffer len = {}", buffer.len());
 
             let buffer = match self.doh_proxy.process_request_packet_buffer(&buffer).await {
                 Some(buffer) => buffer,

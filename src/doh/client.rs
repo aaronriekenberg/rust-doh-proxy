@@ -1,6 +1,6 @@
 use bytes::Buf;
 
-use log::info;
+use log::debug;
 
 use std::error::Error;
 
@@ -30,8 +30,6 @@ impl DOHClient {
         &self,
         request_buffer: Vec<u8>,
     ) -> Result<DOHResponse, Box<dyn Error>> {
-        info!("make_doh_request");
-
         let request = hyper::Request::builder()
             .method("POST")
             .uri("https://cloudflare-dns.com/dns-query")
@@ -41,7 +39,7 @@ impl DOHClient {
 
         let response = self.hyper_client.request(request).await?;
 
-        info!("after hyper post response status = {}", response.status());
+        debug!("after hyper post response status = {}", response.status());
 
         if response.status() != hyper::StatusCode::OK {
             return Ok(DOHResponse::HTTPRequestError);

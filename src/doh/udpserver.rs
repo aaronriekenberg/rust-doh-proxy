@@ -1,6 +1,6 @@
 use crate::doh::proxy::DOHProxy;
 
-use log::{info, warn};
+use log::{debug, info, warn};
 
 use std::error::Error;
 use std::sync::Arc;
@@ -35,7 +35,7 @@ impl UDPServer {
                 let response_message = UDPResponseMessage(response_buffer, peer);
                 match response_sender.send(response_message) {
                     Err(e) => warn!("response_sender.send error {}", e),
-                    Ok(_) => info!("response_sender.send success"),
+                    Ok(_) => debug!("response_sender.send success"),
                 }
             }
             None => warn!("got None response from process_request_packet_buffer"),
@@ -51,16 +51,13 @@ impl UDPServer {
         loop {
             match response_receiver.recv().await {
                 None => {
-                    info!("received none");
+                    warn!("run_udp_response_sender received none");
                     break;
                 }
-                Some(msg) => {
-                    info!("received msg");
-                    match socket_send_half.send_to(&msg.0, &msg.1).await {
-                        Ok(bytes_sent) => info!("send_to success bytes_sent {}", bytes_sent),
-                        Err(e) => warn!("send_to error {}", e),
-                    }
-                }
+                Some(msg) => match socket_send_half.send_to(&msg.0, &msg.1).await {
+                    Ok(bytes_sent) => debug!("send_to success bytes_sent {}", bytes_sent),
+                    Err(e) => warn!("send_to error {}", e),
+                },
             }
         }
     }
