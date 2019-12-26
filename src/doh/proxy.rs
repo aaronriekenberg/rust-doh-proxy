@@ -256,6 +256,11 @@ impl DOHProxy {
     }
 
     async fn process_request_message(&self, request_message: &Message) -> Message {
+        debug!(
+            "process_request_message request_message {:#?}",
+            request_message
+        );
+
         if request_message.queries().is_empty() {
             warn!("request_message.queries is empty");
             return self.build_failure_response_message(&request_message);
@@ -302,11 +307,6 @@ impl DOHProxy {
             }
             Ok(message) => message,
         };
-
-        debug!(
-            "process_request_packet_buffer request_message {:#?}",
-            request_message
-        );
 
         let response_message = self.process_request_message(&request_message).await;
 
