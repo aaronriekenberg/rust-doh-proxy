@@ -4,6 +4,7 @@ use trust_dns_proto::op::Message;
 
 use std::borrow::{Borrow, BorrowMut};
 use std::collections::HashMap;
+use std::time::{Duration, Instant};
 
 pub fn get_cache_key(message: &Message) -> String {
     let mut first = true;
@@ -26,12 +27,34 @@ pub fn get_cache_key(message: &Message) -> String {
 
 #[derive(Clone)]
 pub struct CacheObject {
-    pub message: Message,
+    message: Message,
+    cache_time: Instant,
+    expiration_time: Instant,
 }
 
 impl CacheObject {
-    pub fn new(message: Message) -> Self {
-        CacheObject { message }
+    pub fn new(message: Message, cache_time: Instant, expiration_time: Instant) -> Self {
+        CacheObject {
+            message,
+            cache_time,
+            expiration_time,
+        }
+    }
+
+    pub fn message(self) -> Message {
+        self.message
+    }
+
+    pub fn mut_message(&mut self) -> &mut Message {
+        &mut self.message
+    }
+
+    pub fn expired(&self) -> bool {
+        Instant::now() > self.expiration_time
+    }
+
+    pub fn duration_in_cache(&self) -> Duration {
+        self.cache_time.elapsed()
     }
 }
 

@@ -3,11 +3,15 @@ use crate::doh::client::DOHClient;
 
 use log::{debug, info, warn};
 
+use std::convert::TryFrom;
 use std::error::Error;
+use std::ops::Add;
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use trust_dns_proto::error::ProtoResult;
 use trust_dns_proto::op::Message;
+use trust_dns_proto::rr::resource::Record;
 use trust_dns_proto::serialize::binary::{BinDecodable, BinDecoder, BinEncodable, BinEncoder};
 
 pub struct DOHProxy {
@@ -119,6 +123,146 @@ impl DOHProxy {
         Some(response_message)
     }
 
+    fn clamp_and_get_min_ttl_seconds(&self, response_message: &mut Message) -> u32 {
+        let clamp_min_ttl_seconds: u32 = 10;
+        let clamp_max_ttl_seconds: u32 = 30;
+
+        let mut found_record_ttl = false;
+        let mut record_min_ttl_seconds: u32 = clamp_min_ttl_seconds;
+
+        let mut process_record = |record: &mut Record| {
+            let mut ttl = record.ttl();
+
+            ttl = std::cmp::max(ttl, clamp_min_ttl_seconds);
+            ttl = std::cmp::min(ttl, clamp_max_ttl_seconds);
+
+            if (!found_record_ttl) || (ttl < record_min_ttl_seconds) {
+                record_min_ttl_seconds = ttl;
+                found_record_ttl = true;
+            }
+            record.set_ttl(ttl);
+        };
+
+        for mut record in response_message.take_answers() {
+            process_record(&mut record);
+            response_message.add_answer(record);
+        }
+        for mut record in response_message.take_name_servers() {
+            process_record(&mut record);
+            response_message.add_name_server(record);
+        }
+        for mut record in response_message.take_additionals() {
+            process_record(&mut record);
+            response_message.add_additional(record);
+        }
+
+        record_min_ttl_seconds
+    }
+
+    async fn clamp_ttl_and_cache_response(
+        &self,
+        cache_key: String,
+        mut response_message: Message,
+    ) -> Message {
+        if !((response_message.response_code() == trust_dns_proto::op::ResponseCode::NoError)
+            || (response_message.response_code() == trust_dns_proto::op::ResponseCode::NXDomain))
+        {
+            return response_message;
+        }
+
+        let min_ttl_seconds = self.clamp_and_get_min_ttl_seconds(&mut response_message);
+        info!("min_ttl_seconds = {}", min_ttl_seconds);
+
+        if min_ttl_seconds == 0 {
+            return response_message;
+        }
+
+        if cache_key.is_empty() {
+            return response_message;
+        }
+
+        let now = Instant::now();
+        let min_ttl_duration = Duration::from_secs(min_ttl_seconds.into());
+        let expiration_time = now.add(min_ttl_duration);
+
+        info!("caching response");
+        let new_cache_size = self
+            .cache
+            .put(
+                cache_key,
+                CacheObject::new(response_message.clone(), now, expiration_time),
+            )
+            .await;
+        info!("new_cache_size = {}", new_cache_size);
+        response_message
+    }
+
+    async fn get_message_for_cache_hit(
+        &self,
+        cache_key: &String,
+        request_id: u16,
+    ) -> Option<Message> {
+        let mut cache_object = match self.cache.get(&cache_key).await {
+            None => return None,
+            Some(cache_object) => cache_object,
+        };
+
+        if cache_object.expired() {
+            info!("cache_object is expired");
+            return None;
+        }
+
+        let seconds_to_subtract_from_ttl = cache_object.duration_in_cache().as_secs();
+        let mut ok = true;
+
+        let mut adjust_record_ttl = |record: &mut Record| {
+            let original_ttl = u64::from(record.ttl());
+            if seconds_to_subtract_from_ttl > original_ttl {
+                ok = false;
+            } else {
+                let new_ttl = original_ttl - seconds_to_subtract_from_ttl;
+                let new_ttl = match u32::try_from(new_ttl) {
+                    Ok(new_ttl) => new_ttl,
+                    Err(e) => {
+                        warn!(
+                            "get_message_for_cache_hit new_ttl overflow {} {}",
+                            new_ttl, e
+                        );
+                        ok = false;
+                        0
+                    }
+                };
+                record.set_ttl(new_ttl);
+            }
+        };
+
+        let response_message = cache_object.mut_message();
+
+        for mut record in response_message.take_answers() {
+            adjust_record_ttl(&mut record);
+            response_message.add_answer(record);
+        }
+        for mut record in response_message.take_name_servers() {
+            adjust_record_ttl(&mut record);
+            response_message.add_name_server(record);
+        }
+        for mut record in response_message.take_additionals() {
+            adjust_record_ttl(&mut record);
+            response_message.add_additional(record);
+        }
+
+        if !ok {
+            info!("ok = false");
+            return None;
+        }
+
+        info!("cache hit");
+
+        cache_object.mut_message().set_id(request_id);
+
+        return Some(cache_object.message());
+    }
+
     async fn process_request_message(&self, request_message: &Message) -> Message {
         if request_message.queries().is_empty() {
             info!("request_message.queries is empty");
@@ -128,12 +272,11 @@ impl DOHProxy {
         let cache_key = get_cache_key(&request_message);
         info!("cache_key = '{}'", cache_key);
 
-        if let Some(mut cache_object) = self.cache.get(&cache_key).await {
-            info!("cache hit");
-
-            cache_object.message.set_id(request_message.header().id());
-
-            return cache_object.message;
+        if let Some(response_message) = self
+            .get_message_for_cache_hit(&cache_key, request_message.header().id())
+            .await
+        {
+            return response_message;
         }
 
         let mut doh_request_message = request_message.clone();
@@ -144,22 +287,9 @@ impl DOHProxy {
             Some(response_message) => response_message,
         };
 
-        if (cache_key.len() > 0)
-            && ((response_message.response_code() == trust_dns_proto::op::ResponseCode::NoError)
-                || (response_message.response_code()
-                    == trust_dns_proto::op::ResponseCode::NXDomain))
-        {
-            info!("caching response");
-            let new_cache_size = self
-                .cache
-                .put(cache_key, CacheObject::new(response_message.clone()))
-                .await;
-            info!("new_cache_size = {}", new_cache_size);
-        }
-
-        // info!("response_message = {:#?}", response_message);
-
-        let mut response_message = response_message;
+        let mut response_message = self
+            .clamp_ttl_and_cache_response(cache_key, response_message)
+            .await;
         response_message.set_id(request_message.header().id());
 
         response_message
