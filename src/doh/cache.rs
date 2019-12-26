@@ -3,7 +3,6 @@ use tokio::sync::Mutex;
 use trust_dns_proto::op::Message;
 
 use std::borrow::{Borrow, BorrowMut};
-use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
 pub fn get_cache_key(message: &Message) -> String {
@@ -59,39 +58,39 @@ impl CacheObject {
 }
 
 pub struct Cache {
-    map: Mutex<HashMap<String, CacheObject>>,
+    cache: Mutex<lru::LruCache<String, CacheObject>>,
 }
 
 impl Cache {
     pub fn new() -> Self {
         Cache {
-            map: Mutex::new(HashMap::new()),
+            cache: Mutex::new(lru::LruCache::new(10_000)),
         }
     }
 
     pub async fn get(&self, key: &String) -> Option<CacheObject> {
-        let guard = self.map.lock().await;
+        let mut guard = self.cache.lock().await;
 
-        let map = guard.borrow();
+        let mut_cache = guard.borrow_mut();
 
-        match map.get(key) {
+        match mut_cache.get(key) {
             Some(v) => Some(v.clone()),
             None => None,
         }
     }
 
     pub async fn put(&self, key: String, cache_object: CacheObject) -> usize {
-        let mut guard = self.map.lock().await;
+        let mut guard = self.cache.lock().await;
 
-        let mut_map = guard.borrow_mut();
+        let mut_cache = guard.borrow_mut();
 
-        mut_map.insert(key, cache_object);
+        mut_cache.put(key, cache_object);
 
-        mut_map.len()
+        mut_cache.len()
     }
 
     pub async fn len(&self) -> usize {
-        let guard = self.map.lock().await;
+        let guard = self.cache.lock().await;
 
         let map = guard.borrow();
 

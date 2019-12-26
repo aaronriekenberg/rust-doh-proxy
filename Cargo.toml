@@ -13,5 +13,6 @@ futures = "0.3"
 hyper = "0.13"
 hyper-tls = "0.4"
 log = "0.4"
+lru = "0.4"
 tokio = { version = "0.2", features = ["full"] }
 trust-dns-proto = "0.8"
