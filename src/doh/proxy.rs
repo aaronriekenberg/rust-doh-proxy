@@ -5,7 +5,6 @@ use log::{debug, info, warn};
 
 use std::convert::TryFrom;
 use std::error::Error;
-use std::ops::Add;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -183,7 +182,7 @@ impl DOHProxy {
 
         let now = Instant::now();
         let min_ttl_duration = Duration::from_secs(min_ttl_seconds.into());
-        let expiration_time = now.add(min_ttl_duration);
+        let expiration_time = now + min_ttl_duration;
 
         info!("caching response");
         let new_cache_size = self
