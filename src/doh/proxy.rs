@@ -332,9 +332,12 @@ impl DOHProxy {
 
         loop {
             tokio::time::delay_for(Duration::from_secs(10)).await;
+
+            let cache_items_purged = self.cache.periodic_purge(100).await;
             info!(
-                "run_periodic_timer pop cache len {}",
-                self.cache.len().await
+                "run_periodic_timer pop cache len={} cache_items_purged={}",
+                self.cache.len().await,
+                cache_items_purged,
             );
         }
     }

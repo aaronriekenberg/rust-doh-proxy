@@ -92,8 +92,33 @@ impl Cache {
     pub async fn len(&self) -> usize {
         let guard = self.cache.lock().await;
 
-        let map = guard.borrow();
+        let cache = guard.borrow();
 
-        map.len()
+        cache.len()
+    }
+
+    pub async fn periodic_purge(&self, max_purge_items: usize) -> usize {
+        let mut guard = self.cache.lock().await;
+
+        let mut_cache = guard.borrow_mut();
+
+        let mut items_purged: usize = 0;
+
+        while items_purged < max_purge_items {
+            let lru_key_and_value = match mut_cache.peek_lru() {
+                None => break,
+                Some(lru_key_and_value) => lru_key_and_value,
+            };
+
+            if lru_key_and_value.1.expired() {
+                let key_clone = lru_key_and_value.0.clone();
+                mut_cache.pop(&key_clone);
+                items_purged += 1;
+            } else {
+                break;
+            }
+        }
+
+        items_purged
     }
 }
