@@ -260,7 +260,7 @@ impl DOHProxy {
 
         cache_object.mut_message().set_id(request_id);
 
-        return Some(cache_object.message());
+        Some(cache_object.message())
     }
 
     async fn process_request_message(&self, request_message: &Message) -> Message {
@@ -328,8 +328,22 @@ impl DOHProxy {
         }
     }
 
+    async fn run_periodic_timer(self: Arc<Self>) {
+        info!("begin run_periodic_timer");
+
+        loop {
+            tokio::time::delay_for(Duration::from_secs(10)).await;
+            info!(
+                "run_periodic_timer pop cache len {}",
+                self.cache.len().await
+            );
+        }
+    }
+
     pub async fn run(self: Arc<Self>) -> Result<(), Box<dyn Error>> {
         info!("begin DOHProxy.run");
+
+        tokio::spawn(Arc::clone(&self).run_periodic_timer());
 
         let tcp_server = crate::doh::tcpserver::TCPServer::new(Arc::clone(&self));
         tokio::spawn(async move {

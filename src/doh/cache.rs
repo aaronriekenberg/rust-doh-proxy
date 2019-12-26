@@ -89,4 +89,12 @@ impl Cache {
 
         mut_map.len()
     }
+
+    pub async fn len(&self) -> usize {
+        let guard = self.map.lock().await;
+
+        let map = guard.borrow();
+
+        map.len()
+    }
 }
