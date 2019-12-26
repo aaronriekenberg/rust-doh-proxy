@@ -250,7 +250,7 @@ impl DOHProxy {
             return None;
         }
 
-        cache_object.mut_message().set_id(request_id);
+        response_message.set_id(request_id);
 
         Some(cache_object.message())
     }
