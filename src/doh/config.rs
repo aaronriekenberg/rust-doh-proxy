@@ -3,7 +3,9 @@ use log::info;
 use serde_derive::Deserialize;
 
 use std::error::Error;
-use std::io::Read;
+
+use tokio::fs::File;
+use tokio::io::AsyncReadExt;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct ServerConfiguration {
@@ -32,16 +34,16 @@ impl Configuration {
     }
 }
 
-pub fn read_configuration(config_file: String) -> Result<Configuration, Box<dyn Error>> {
+pub async fn read_configuration(config_file: String) -> Result<Configuration, Box<dyn Error>> {
     info!("reading {}", config_file);
 
-    let mut file = ::std::fs::File::open(config_file)?;
+    let mut file = File::open(config_file).await?;
 
-    let mut file_contents = String::new();
+    let mut file_contents = Vec::new();
 
-    file.read_to_string(&mut file_contents)?;
+    file.read_to_end(&mut file_contents).await?;
 
-    let configuration: Configuration = ::serde_json::from_str(&file_contents)?;
+    let configuration: Configuration = ::serde_json::from_slice(&file_contents)?;
 
     info!("read_configuration configuration\n{:#?}", configuration);
 
