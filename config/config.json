@@ -31,7 +31,8 @@
     "max_purges_per_timer_pop": 100
   },
   "client_configuration": {
-    "remote_url": "https://dns.google/dns-query"
+    "remote_url": "https://dns.google/dns-query",
+    "request_timeout_seconds": 5
   },
   "proxy_configuration": {
     "clamp_min_ttl_seconds": 10,

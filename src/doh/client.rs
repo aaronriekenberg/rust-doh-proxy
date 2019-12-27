@@ -5,6 +5,9 @@ use crate::doh::config::ClientConfiguration;
 use log::debug;
 
 use std::error::Error;
+use std::time::Duration;
+
+use tokio::time::timeout;
 
 pub enum DOHResponse {
     HTTPRequestError,
@@ -41,7 +44,11 @@ impl DOHClient {
             .header("Accept", "application/dns-message")
             .body(hyper::Body::from(request_buffer))?;
 
-        let response = self.hyper_client.request(request).await?;
+        let response = timeout(
+            Duration::from_secs(self.client_configuration.request_timeout_seconds()),
+            self.hyper_client.request(request),
+        )
+        .await??;
 
         debug!("after hyper post response status = {}", response.status());
 

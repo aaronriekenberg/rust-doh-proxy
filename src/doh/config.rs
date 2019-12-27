@@ -79,11 +79,16 @@ impl CacheConfiguration {
 #[derive(Debug, Clone, Deserialize)]
 pub struct ClientConfiguration {
     remote_url: String,
+    request_timeout_seconds: u64,
 }
 
 impl ClientConfiguration {
     pub fn remote_url(&self) -> &String {
         &self.remote_url
+    }
+
+    pub fn request_timeout_seconds(&self) -> u64 {
+        self.request_timeout_seconds
     }
 }
 
