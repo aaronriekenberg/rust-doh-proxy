@@ -12,7 +12,7 @@ pub enum DOHResponse {
 }
 
 type HyperClient = hyper::client::Client<
-    hyper_tls::HttpsConnector<hyper::client::connect::HttpConnector>,
+    hyper_rustls::HttpsConnector<hyper::client::connect::HttpConnector>,
     hyper::Body,
 >;
 
@@ -23,7 +23,7 @@ pub struct DOHClient {
 
 impl DOHClient {
     pub fn new(client_configuration: ClientConfiguration) -> Self {
-        let https = hyper_tls::HttpsConnector::new();
+        let https = hyper_rustls::HttpsConnector::new();
         DOHClient {
             client_configuration,
             hyper_client: hyper::Client::builder().build::<_, hyper::Body>(https),
