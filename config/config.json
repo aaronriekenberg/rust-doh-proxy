@@ -14,6 +14,18 @@
       "ttl_seconds": 60
     }
   ],
+  "reverse_domain_configurations": [
+    {
+      "reverse_address": "1.1.168.192.in-addr.arpa.",
+      "name": "apu2.domain.",
+      "ttl_seconds": 60
+    },
+    {
+      "reverse_address": "100.1.168.192.in-addr.arpa.",
+      "name": "raspberrypi.domain.",
+      "ttl_seconds": 60
+    }
+  ],
   "cache_configuration": {
     "max_size": 20000,
     "max_purges_per_timer_pop": 100

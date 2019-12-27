@@ -1,5 +1,5 @@
 use crate::doh::cache::get_cache_key;
-use crate::doh::config::ForwardDomainConfiguration;
+use crate::doh::config::{ForwardDomainConfiguration, ReverseDomainConfiguration};
 
 use std::collections::HashMap;
 use std::str::FromStr;
@@ -13,11 +13,19 @@ pub struct LocalDomainCache {
 }
 
 impl LocalDomainCache {
-    pub fn new(forward_domain_configurations: Vec<ForwardDomainConfiguration>) -> Self {
+    pub fn new(
+        forward_domain_configurations: Vec<ForwardDomainConfiguration>,
+        reverse_domain_configurations: Vec<ReverseDomainConfiguration>,
+    ) -> Self {
         let mut cache = HashMap::new();
 
         for forward_domain_configuration in forward_domain_configurations {
-            let message = forward_domain_to_message(forward_domain_configuration);
+            let message = forward_domain_configuration_to_message(forward_domain_configuration);
+            cache.insert(get_cache_key(&message), message);
+        }
+
+        for reverse_domain_configuration in reverse_domain_configurations {
+            let message = reverse_domain_configuration_to_message(reverse_domain_configuration);
             cache.insert(get_cache_key(&message), message);
         }
 
@@ -32,7 +40,9 @@ impl LocalDomainCache {
     }
 }
 
-fn forward_domain_to_message(forward_domain_configuration: ForwardDomainConfiguration) -> Message {
+fn forward_domain_configuration_to_message(
+    forward_domain_configuration: ForwardDomainConfiguration,
+) -> Message {
     let name =
         Name::from_str(&forward_domain_configuration.name()).expect("invalid forward domain name");
     let ip_address = forward_domain_configuration
@@ -52,6 +62,31 @@ fn forward_domain_to_message(forward_domain_configuration: ForwardDomainConfigur
         name,
         forward_domain_configuration.ttl_seconds(),
         RData::A(ip_address),
+    );
+    message.add_answer(answer);
+
+    message
+}
+
+fn reverse_domain_configuration_to_message(
+    reverse_domain_configuration: ReverseDomainConfiguration,
+) -> Message {
+    let reverse_address = Name::from_str(&reverse_domain_configuration.reverse_address())
+        .expect("invalid reverse address");
+    let name = Name::from_str(&reverse_domain_configuration.name()).expect("invalid reverse name");
+
+    let mut message = Message::new();
+    message.set_message_type(MessageType::Response);
+    message.set_response_code(ResponseCode::NoError);
+    message.set_authoritative(true);
+
+    let query = Query::query(reverse_address.clone(), RecordType::PTR);
+    message.add_query(query);
+
+    let answer = Record::from_rdata(
+        reverse_address,
+        reverse_domain_configuration.ttl_seconds(),
+        RData::PTR(name),
     );
     message.add_answer(answer);
 

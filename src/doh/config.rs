@@ -40,6 +40,27 @@ impl ForwardDomainConfiguration {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+pub struct ReverseDomainConfiguration {
+    reverse_address: String,
+    name: String,
+    ttl_seconds: u32,
+}
+
+impl ReverseDomainConfiguration {
+    pub fn reverse_address(&self) -> &String {
+        &self.reverse_address
+    }
+
+    pub fn name(&self) -> &String {
+        &self.name
+    }
+
+    pub fn ttl_seconds(&self) -> u32 {
+        self.ttl_seconds
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
 pub struct CacheConfiguration {
     max_size: usize,
     max_purges_per_timer_pop: usize,
@@ -86,6 +107,7 @@ impl ProxyConfiguration {
 pub struct Configuration {
     server_configuration: ServerConfiguration,
     forward_domain_configurations: Vec<ForwardDomainConfiguration>,
+    reverse_domain_configurations: Vec<ReverseDomainConfiguration>,
     cache_configuration: CacheConfiguration,
     client_configuration: ClientConfiguration,
     proxy_configuration: ProxyConfiguration,
@@ -99,6 +121,10 @@ impl Configuration {
 
     pub fn forward_domain_configurations(&self) -> &Vec<ForwardDomainConfiguration> {
         &self.forward_domain_configurations
+    }
+
+    pub fn reverse_domain_configurations(&self) -> &Vec<ReverseDomainConfiguration> {
+        &self.reverse_domain_configurations
     }
 
     pub fn cache_configuration(&self) -> &CacheConfiguration {
