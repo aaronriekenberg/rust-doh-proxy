@@ -1,4 +1,4 @@
-use crate::doh::cache::{get_cache_key, Cache, CacheObject};
+use crate::doh::cache::{get_cache_key, Cache, CacheKey, CacheObject};
 use crate::doh::client::DOHClient;
 use crate::doh::config::Configuration;
 use crate::doh::localdomain::LocalDomainCache;
@@ -185,7 +185,7 @@ impl DOHProxy {
 
     async fn clamp_ttl_and_cache_response(
         &self,
-        cache_key: String,
+        cache_key: CacheKey,
         mut response_message: Message,
     ) -> Message {
         if !((response_message.response_code() == trust_dns_proto::op::ResponseCode::NoError)
@@ -200,7 +200,7 @@ impl DOHProxy {
             return response_message;
         }
 
-        if cache_key.is_empty() {
+        if !cache_key.valid() {
             return response_message;
         }
 
@@ -218,7 +218,11 @@ impl DOHProxy {
         response_message
     }
 
-    fn get_message_for_local_domain(&self, cache_key: &String, request_id: u16) -> Option<Message> {
+    fn get_message_for_local_domain(
+        &self,
+        cache_key: &CacheKey,
+        request_id: u16,
+    ) -> Option<Message> {
         let mut response_message = match self.local_domain_cache.get_response_message(&cache_key) {
             None => return None,
             Some(message) => message,
@@ -231,7 +235,7 @@ impl DOHProxy {
 
     async fn get_message_for_cache_hit(
         &self,
-        cache_key: &String,
+        cache_key: &CacheKey,
         request_id: u16,
     ) -> Option<Message> {
         let mut cache_object = match self.cache.get(&cache_key).await {
@@ -304,7 +308,7 @@ impl DOHProxy {
 
         let cache_key = get_cache_key(&request_message);
 
-        debug!("cache_key = {}", cache_key);
+        debug!("cache_key = {:#?}", cache_key);
 
         if let Some(response_message) =
             self.get_message_for_local_domain(&cache_key, request_message.header().id())

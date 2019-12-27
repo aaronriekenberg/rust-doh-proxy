@@ -1,4 +1,4 @@
-use crate::doh::cache::get_cache_key;
+use crate::doh::cache::{get_cache_key, CacheKey};
 use crate::doh::config::{ForwardDomainConfiguration, ReverseDomainConfiguration};
 
 use std::collections::HashMap;
@@ -9,7 +9,7 @@ use trust_dns_proto::rr::resource::Record;
 use trust_dns_proto::rr::{Name, RData, RecordType};
 
 pub struct LocalDomainCache {
-    cache: HashMap<String, Message>,
+    cache: HashMap<CacheKey, Message>,
 }
 
 impl LocalDomainCache {
@@ -32,7 +32,7 @@ impl LocalDomainCache {
         LocalDomainCache { cache }
     }
 
-    pub fn get_response_message(&self, cache_key: &String) -> Option<Message> {
+    pub fn get_response_message(&self, cache_key: &CacheKey) -> Option<Message> {
         match self.cache.get(cache_key) {
             None => None,
             Some(message) => Some(message.clone()),

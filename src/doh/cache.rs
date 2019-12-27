@@ -7,7 +7,18 @@ use trust_dns_proto::op::Message;
 use std::borrow::BorrowMut;
 use std::time::{Duration, Instant};
 
-pub fn get_cache_key(message: &Message) -> String {
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub struct CacheKey {
+    key: String,
+}
+
+impl CacheKey {
+    pub fn valid(&self) -> bool {
+        !self.key.is_empty()
+    }
+}
+
+pub fn get_cache_key(message: &Message) -> CacheKey {
     let mut first = true;
     let mut key = String::new();
 
@@ -23,7 +34,7 @@ pub fn get_cache_key(message: &Message) -> String {
         first = false;
     }
 
-    key
+    CacheKey { key }
 }
 
 #[derive(Clone)]
@@ -61,7 +72,7 @@ impl CacheObject {
 
 pub struct Cache {
     cache_configuration: CacheConfiguration,
-    cache: Mutex<lru::LruCache<String, CacheObject>>,
+    cache: Mutex<lru::LruCache<CacheKey, CacheObject>>,
 }
 
 impl Cache {
@@ -74,7 +85,7 @@ impl Cache {
         }
     }
 
-    pub async fn get(&self, key: &String) -> Option<CacheObject> {
+    pub async fn get(&self, key: &CacheKey) -> Option<CacheObject> {
         let mut guard = self.cache.lock().await;
 
         let mut_cache = guard.borrow_mut();
@@ -85,7 +96,7 @@ impl Cache {
         }
     }
 
-    pub async fn put(&self, key: String, cache_object: CacheObject) {
+    pub async fn put(&self, key: CacheKey, cache_object: CacheObject) {
         let mut guard = self.cache.lock().await;
 
         let mut_cache = guard.borrow_mut();
