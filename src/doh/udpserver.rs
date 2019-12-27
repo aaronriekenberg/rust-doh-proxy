@@ -1,3 +1,4 @@
+use crate::doh::config::ServerConfiguration;
 use crate::doh::proxy::DOHProxy;
 
 use log::{debug, info, warn};
@@ -11,12 +12,16 @@ use tokio::sync::mpsc;
 struct UDPResponseMessage(Vec<u8>, std::net::SocketAddr);
 
 pub struct UDPServer {
+    server_configuration: ServerConfiguration,
     doh_proxy: Arc<DOHProxy>,
 }
 
 impl UDPServer {
-    pub fn new(doh_proxy: Arc<DOHProxy>) -> Arc<Self> {
-        Arc::new(UDPServer { doh_proxy })
+    pub fn new(server_configuration: ServerConfiguration, doh_proxy: Arc<DOHProxy>) -> Arc<Self> {
+        Arc::new(UDPServer {
+            server_configuration,
+            doh_proxy,
+        })
     }
 
     async fn process_udp_packet(
@@ -63,13 +68,13 @@ impl UDPServer {
     }
 
     pub async fn run(self: Arc<Self>) -> Result<(), Box<dyn Error>> {
-        info!("begin UDPServer.run");
+        info!("begin run");
 
         let (response_sender, response_receiver) = mpsc::unbounded_channel::<UDPResponseMessage>();
 
-        let socket = UdpSocket::bind("127.0.0.1:10053").await?;
+        let socket = UdpSocket::bind(self.server_configuration.listen_address()).await?;
 
-        info!("Listening on udp {}", socket.local_addr()?);
+        info!("listening on udp {}", socket.local_addr()?);
 
         let (mut socket_recv_half, socket_send_half) = socket.split();
 

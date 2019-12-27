@@ -44,7 +44,7 @@ impl CacheObject {
         self.message
     }
 
-    pub fn mut_message(&mut self) -> &mut Message {
+    pub fn message_mut(&mut self) -> &mut Message {
         &mut self.message
     }
 

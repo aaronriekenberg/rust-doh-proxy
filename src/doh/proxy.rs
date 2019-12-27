@@ -1,5 +1,6 @@
 use crate::doh::cache::{get_cache_key, Cache, CacheObject};
 use crate::doh::client::DOHClient;
+use crate::doh::config::Configuration;
 
 use log::{debug, info, warn};
 
@@ -14,13 +15,15 @@ use trust_dns_proto::rr::resource::Record;
 use trust_dns_proto::serialize::binary::{BinDecodable, BinDecoder, BinEncodable, BinEncoder};
 
 pub struct DOHProxy {
+    configuration: Configuration,
     cache: Cache,
     doh_client: DOHClient,
 }
 
 impl DOHProxy {
-    pub fn new() -> Arc<Self> {
+    pub fn new(configuration: Configuration) -> Arc<Self> {
         Arc::new(DOHProxy {
+            configuration,
             cache: Cache::new(),
             doh_client: DOHClient::new(),
         })
@@ -231,7 +234,7 @@ impl DOHProxy {
             }
         };
 
-        let response_message = cache_object.mut_message();
+        let response_message = cache_object.message_mut();
 
         for mut record in response_message.take_answers() {
             adjust_record_ttl(&mut record);
@@ -323,7 +326,10 @@ impl DOHProxy {
         info!("begin run_periodic_timer");
 
         loop {
-            tokio::time::delay_for(Duration::from_secs(10)).await;
+            tokio::time::delay_for(Duration::from_secs(
+                self.configuration.timer_interval_seconds(),
+            ))
+            .await;
 
             let cache_items_purged = self.cache.periodic_purge(100).await;
             info!(
@@ -335,18 +341,24 @@ impl DOHProxy {
     }
 
     pub async fn run(self: Arc<Self>) -> Result<(), Box<dyn Error>> {
-        info!("begin DOHProxy.run");
+        info!("begin run");
 
         tokio::spawn(Arc::clone(&self).run_periodic_timer());
 
-        let tcp_server = crate::doh::tcpserver::TCPServer::new(Arc::clone(&self));
+        let tcp_server = crate::doh::tcpserver::TCPServer::new(
+            self.configuration.server_configuration().clone(),
+            Arc::clone(&self),
+        );
         tokio::spawn(async move {
             if let Err(e) = tcp_server.run().await {
                 warn!("run_tcp_server returned error {}", e);
             }
         });
 
-        let udp_server = crate::doh::udpserver::UDPServer::new(Arc::clone(&self));
+        let udp_server = crate::doh::udpserver::UDPServer::new(
+            self.configuration.server_configuration().clone(),
+            Arc::clone(&self),
+        );
         udp_server.run().await
     }
 }

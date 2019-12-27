@@ -1,3 +1,4 @@
+use crate::doh::config::ServerConfiguration;
 use crate::doh::proxy::DOHProxy;
 
 use log::{debug, info, warn};
@@ -10,12 +11,16 @@ use std::error::Error;
 use std::sync::Arc;
 
 pub struct TCPServer {
+    server_configuration: ServerConfiguration,
     doh_proxy: Arc<DOHProxy>,
 }
 
 impl TCPServer {
-    pub fn new(doh_proxy: Arc<DOHProxy>) -> Arc<Self> {
-        Arc::new(TCPServer { doh_proxy })
+    pub fn new(server_configuration: ServerConfiguration, doh_proxy: Arc<DOHProxy>) -> Arc<Self> {
+        Arc::new(TCPServer {
+            server_configuration,
+            doh_proxy,
+        })
     }
 
     async fn process_tcp_stream(
@@ -56,10 +61,10 @@ impl TCPServer {
     }
 
     pub async fn run(self: Arc<Self>) -> Result<(), Box<dyn Error>> {
-        info!("begin TCPServer.run");
+        info!("begin run");
 
-        let mut listener = TcpListener::bind("127.0.0.1:10053").await?;
-        info!("Listening on tcp {}", listener.local_addr()?);
+        let mut listener = TcpListener::bind(self.server_configuration.listen_address()).await?;
+        info!("listening on tcp {}", listener.local_addr()?);
 
         loop {
             let (stream, _) = listener.accept().await?;

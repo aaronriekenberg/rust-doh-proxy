@@ -6,7 +6,13 @@ use std::error::Error;
 async fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
 
-    let doh_proxy = doh::proxy::DOHProxy::new();
+    let config_file = std::env::args()
+        .nth(1)
+        .ok_or("config file required as command line argument")?;
+
+    let configuration = doh::config::read_configuration(config_file)?;
+
+    let doh_proxy = doh::proxy::DOHProxy::new(configuration);
 
     doh_proxy.run().await
 }
