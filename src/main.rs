@@ -4,7 +4,7 @@ use std::error::Error;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    env_logger::init();
+    env_logger::builder().format_timestamp_nanos().init();
 
     let config_file = std::env::args()
         .nth(1)
