@@ -1,5 +1,7 @@
 use bytes::Buf;
 
+use crate::doh::config::ClientConfiguration;
+
 use log::debug;
 
 use std::error::Error;
@@ -15,13 +17,15 @@ type HyperClient = hyper::client::Client<
 >;
 
 pub struct DOHClient {
+    client_configuration: ClientConfiguration,
     hyper_client: HyperClient,
 }
 
 impl DOHClient {
-    pub fn new() -> Self {
+    pub fn new(client_configuration: ClientConfiguration) -> Self {
         let https = hyper_tls::HttpsConnector::new();
         DOHClient {
+            client_configuration,
             hyper_client: hyper::Client::builder().build::<_, hyper::Body>(https),
         }
     }
@@ -32,7 +36,7 @@ impl DOHClient {
     ) -> Result<DOHResponse, Box<dyn Error>> {
         let request = hyper::Request::builder()
             .method("POST")
-            .uri("https://cloudflare-dns.com/dns-query")
+            .uri(self.client_configuration.remote_url())
             .header("Content-Type", "application/dns-message")
             .header("Accept", "application/dns-message")
             .body(hyper::Body::from(request_buffer))?;

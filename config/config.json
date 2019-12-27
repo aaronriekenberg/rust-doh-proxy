@@ -6,5 +6,8 @@
     "max_size": 20000,
     "max_purges_per_timer_pop": 100
   },
+  "client_configuration": {
+    "remote_url": "https://cloudflare-dns.com/dns-query"
+  },
   "timer_interval_seconds": 10
 }

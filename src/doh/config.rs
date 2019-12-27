@@ -35,9 +35,21 @@ impl CacheConfiguration {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+pub struct ClientConfiguration {
+    remote_url: String,
+}
+
+impl ClientConfiguration {
+    pub fn remote_url(&self) -> &String {
+        &self.remote_url
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
 pub struct Configuration {
     server_configuration: ServerConfiguration,
     cache_configuration: CacheConfiguration,
+    client_configuration: ClientConfiguration,
     timer_interval_seconds: u64,
 }
 
@@ -48,6 +60,10 @@ impl Configuration {
 
     pub fn cache_configuration(&self) -> &CacheConfiguration {
         &self.cache_configuration
+    }
+
+    pub fn client_configuration(&self) -> &ClientConfiguration {
+        &self.client_configuration
     }
 
     pub fn timer_interval_seconds(&self) -> u64 {

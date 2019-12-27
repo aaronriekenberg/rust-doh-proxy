@@ -23,10 +23,12 @@ pub struct DOHProxy {
 impl DOHProxy {
     pub fn new(configuration: Configuration) -> Arc<Self> {
         let cache_configuration = configuration.cache_configuration().clone();
+        let client_configuration = configuration.client_configuration().clone();
+
         Arc::new(DOHProxy {
             configuration,
             cache: Cache::new(cache_configuration),
-            doh_client: DOHClient::new(),
+            doh_client: DOHClient::new(client_configuration),
         })
     }
 
