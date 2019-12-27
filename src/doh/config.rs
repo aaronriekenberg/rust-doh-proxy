@@ -46,10 +46,27 @@ impl ClientConfiguration {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+pub struct ProxyConfiguration {
+    clamp_min_ttl_seconds: u32,
+    clamp_max_ttl_seconds: u32,
+}
+
+impl ProxyConfiguration {
+    pub fn clamp_min_ttl_seconds(&self) -> u32 {
+        self.clamp_min_ttl_seconds
+    }
+
+    pub fn clamp_max_ttl_seconds(&self) -> u32 {
+        self.clamp_max_ttl_seconds
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
 pub struct Configuration {
     server_configuration: ServerConfiguration,
     cache_configuration: CacheConfiguration,
     client_configuration: ClientConfiguration,
+    proxy_configuration: ProxyConfiguration,
     timer_interval_seconds: u64,
 }
 
@@ -64,6 +81,10 @@ impl Configuration {
 
     pub fn client_configuration(&self) -> &ClientConfiguration {
         &self.client_configuration
+    }
+
+    pub fn proxy_configuration(&self) -> &ProxyConfiguration {
+        &self.proxy_configuration
     }
 
     pub fn timer_interval_seconds(&self) -> u64 {

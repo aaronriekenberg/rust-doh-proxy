@@ -129,8 +129,14 @@ impl DOHProxy {
     }
 
     fn clamp_and_get_min_ttl_seconds(&self, response_message: &mut Message) -> u32 {
-        let clamp_min_ttl_seconds: u32 = 10;
-        let clamp_max_ttl_seconds: u32 = 30;
+        let clamp_min_ttl_seconds = self
+            .configuration
+            .proxy_configuration()
+            .clamp_min_ttl_seconds();
+        let clamp_max_ttl_seconds = self
+            .configuration
+            .proxy_configuration()
+            .clamp_max_ttl_seconds();
 
         let mut found_record_ttl = false;
         let mut record_min_ttl_seconds: u32 = clamp_min_ttl_seconds;

@@ -9,5 +9,9 @@
   "client_configuration": {
     "remote_url": "https://cloudflare-dns.com/dns-query"
   },
+  "proxy_configuration": {
+    "clamp_min_ttl_seconds": 10,
+    "clamp_max_ttl_seconds": 30
+  },
   "timer_interval_seconds": 10
 }
