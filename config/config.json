@@ -2,5 +2,9 @@
   "server_configuration": {
     "listen_address": "127.0.0.1:10053"
   },
+  "cache_configuration": {
+    "max_size": 20000,
+    "max_purges_per_timer_pop": 100
+  },
   "timer_interval_seconds": 10
 }

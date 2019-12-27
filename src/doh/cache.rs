@@ -1,3 +1,5 @@
+use crate::doh::config::CacheConfiguration;
+
 use tokio::sync::Mutex;
 
 use trust_dns_proto::op::Message;
@@ -48,8 +50,8 @@ impl CacheObject {
         &mut self.message
     }
 
-    pub fn expired(&self) -> bool {
-        Instant::now() > self.expiration_time
+    pub fn expired(&self, now: Instant) -> bool {
+        now > self.expiration_time
     }
 
     pub fn duration_in_cache(&self) -> Duration {
@@ -58,13 +60,17 @@ impl CacheObject {
 }
 
 pub struct Cache {
+    cache_configuration: CacheConfiguration,
     cache: Mutex<lru::LruCache<String, CacheObject>>,
 }
 
 impl Cache {
-    pub fn new() -> Self {
+    pub fn new(cache_configuration: CacheConfiguration) -> Self {
+        let max_size = cache_configuration.max_size();
+
         Cache {
-            cache: Mutex::new(lru::LruCache::new(10_000)),
+            cache_configuration,
+            cache: Mutex::new(lru::LruCache::new(max_size)),
         }
     }
 
@@ -95,20 +101,22 @@ impl Cache {
         cache.len()
     }
 
-    pub async fn periodic_purge(&self, max_purge_items: usize) -> usize {
+    pub async fn periodic_purge(&self) -> usize {
         let mut guard = self.cache.lock().await;
 
         let mut_cache = guard.borrow_mut();
 
         let mut items_purged: usize = 0;
 
-        while items_purged < max_purge_items {
+        let now = Instant::now();
+
+        while items_purged < self.cache_configuration.max_purges_per_timer_pop() {
             let lru_key_and_value = match mut_cache.peek_lru() {
                 None => break,
                 Some(lru_key_and_value) => lru_key_and_value,
             };
 
-            if lru_key_and_value.1.expired() {
+            if lru_key_and_value.1.expired(now) {
                 let key_clone = lru_key_and_value.0.clone();
                 mut_cache.pop(&key_clone);
                 items_purged += 1;

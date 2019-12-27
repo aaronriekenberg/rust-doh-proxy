@@ -22,9 +22,10 @@ pub struct DOHProxy {
 
 impl DOHProxy {
     pub fn new(configuration: Configuration) -> Arc<Self> {
+        let cache_configuration = configuration.cache_configuration().clone();
         Arc::new(DOHProxy {
             configuration,
-            cache: Cache::new(),
+            cache: Cache::new(cache_configuration),
             doh_client: DOHClient::new(),
         })
     }
@@ -206,7 +207,7 @@ impl DOHProxy {
             Some(cache_object) => cache_object,
         };
 
-        if cache_object.expired() {
+        if cache_object.expired(Instant::now()) {
             return None;
         }
 
@@ -331,7 +332,7 @@ impl DOHProxy {
             ))
             .await;
 
-            let cache_items_purged = self.cache.periodic_purge(100).await;
+            let cache_items_purged = self.cache.periodic_purge().await;
             info!(
                 "run_periodic_timer pop cache len={} cache_items_purged={}",
                 self.cache.len().await,

@@ -19,14 +19,35 @@ impl ServerConfiguration {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+pub struct CacheConfiguration {
+    max_size: usize,
+    max_purges_per_timer_pop: usize,
+}
+
+impl CacheConfiguration {
+    pub fn max_size(&self) -> usize {
+        self.max_size
+    }
+
+    pub fn max_purges_per_timer_pop(&self) -> usize {
+        self.max_purges_per_timer_pop
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
 pub struct Configuration {
     server_configuration: ServerConfiguration,
+    cache_configuration: CacheConfiguration,
     timer_interval_seconds: u64,
 }
 
 impl Configuration {
     pub fn server_configuration(&self) -> &ServerConfiguration {
         &self.server_configuration
+    }
+
+    pub fn cache_configuration(&self) -> &CacheConfiguration {
+        &self.cache_configuration
     }
 
     pub fn timer_interval_seconds(&self) -> u64 {
