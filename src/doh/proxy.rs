@@ -1,6 +1,7 @@
 use crate::doh::cache::{get_cache_key, Cache, CacheObject};
 use crate::doh::client::DOHClient;
 use crate::doh::config::Configuration;
+use crate::doh::metrics::Metrics;
 
 use log::{debug, info, warn};
 
@@ -18,6 +19,7 @@ pub struct DOHProxy {
     configuration: Configuration,
     cache: Cache,
     doh_client: DOHClient,
+    metrics: Metrics,
 }
 
 impl DOHProxy {
@@ -29,6 +31,7 @@ impl DOHProxy {
             configuration,
             cache: Cache::new(cache_configuration),
             doh_client: DOHClient::new(client_configuration),
+            metrics: Metrics::new(),
         })
     }
 
@@ -284,8 +287,11 @@ impl DOHProxy {
             .get_message_for_cache_hit(&cache_key, request_message.header().id())
             .await
         {
+            self.metrics.increment_cache_hits();
             return response_message;
         }
+
+        self.metrics.increment_cache_misses();
 
         let mut doh_request_message = request_message.clone();
         doh_request_message.set_id(0);
@@ -340,11 +346,10 @@ impl DOHProxy {
             ))
             .await;
 
-            let cache_items_purged = self.cache.periodic_purge().await;
+            let (cache_len, cache_items_purged) = self.cache.periodic_purge().await;
             info!(
-                "run_periodic_timer pop cache len={} cache_items_purged={}",
-                self.cache.len().await,
-                cache_items_purged,
+                "run_periodic_timer pop metrics: {} cache_len = {} cache_items_purged = {}",
+                self.metrics, cache_len, cache_items_purged,
             );
         }
     }

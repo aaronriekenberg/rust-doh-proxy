@@ -4,7 +4,7 @@ use tokio::sync::Mutex;
 
 use trust_dns_proto::op::Message;
 
-use std::borrow::{Borrow, BorrowMut};
+use std::borrow::BorrowMut;
 use std::time::{Duration, Instant};
 
 pub fn get_cache_key(message: &Message) -> String {
@@ -93,15 +93,7 @@ impl Cache {
         mut_cache.put(key, cache_object);
     }
 
-    pub async fn len(&self) -> usize {
-        let guard = self.cache.lock().await;
-
-        let cache = guard.borrow();
-
-        cache.len()
-    }
-
-    pub async fn periodic_purge(&self) -> usize {
+    pub async fn periodic_purge(&self) -> (usize, usize) {
         let mut guard = self.cache.lock().await;
 
         let mut_cache = guard.borrow_mut();
@@ -125,6 +117,6 @@ impl Cache {
             }
         }
 
-        items_purged
+        (mut_cache.len(), items_purged)
     }
 }
