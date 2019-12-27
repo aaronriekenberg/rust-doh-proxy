@@ -93,7 +93,9 @@ impl DOHProxy {
         }
     }
 
-    async fn make_doh_request(&self, doh_request_message: Message) -> Option<Message> {
+    async fn make_doh_request(&self, request_message: &Message) -> Option<Message> {
+        let mut doh_request_message = request_message.clone();
+        doh_request_message.set_id(0);
         let request_buffer = match self.encode_dns_message(&doh_request_message) {
             Err(e) => {
                 warn!("encode_dns_message error {}", e);
@@ -283,6 +285,8 @@ impl DOHProxy {
 
         let cache_key = get_cache_key(&request_message);
 
+        debug!("cache_key = {}", cache_key);
+
         if let Some(response_message) = self
             .get_message_for_cache_hit(&cache_key, request_message.header().id())
             .await
@@ -293,10 +297,7 @@ impl DOHProxy {
 
         self.metrics.increment_cache_misses();
 
-        let mut doh_request_message = request_message.clone();
-        doh_request_message.set_id(0);
-
-        let response_message = match self.make_doh_request(doh_request_message).await {
+        let response_message = match self.make_doh_request(&request_message).await {
             None => return self.build_failure_response_message(&request_message),
             Some(response_message) => response_message,
         };
