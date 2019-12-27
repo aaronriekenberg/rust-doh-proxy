@@ -19,6 +19,27 @@ impl ServerConfiguration {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+pub struct ForwardDomainConfiguration {
+    name: String,
+    ip_address: String,
+    ttl_seconds: u32,
+}
+
+impl ForwardDomainConfiguration {
+    pub fn name(&self) -> &String {
+        &self.name
+    }
+
+    pub fn ip_address(&self) -> &String {
+        &self.ip_address
+    }
+
+    pub fn ttl_seconds(&self) -> u32 {
+        self.ttl_seconds
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
 pub struct CacheConfiguration {
     max_size: usize,
     max_purges_per_timer_pop: usize,
@@ -64,6 +85,7 @@ impl ProxyConfiguration {
 #[derive(Debug, Clone, Deserialize)]
 pub struct Configuration {
     server_configuration: ServerConfiguration,
+    forward_domain_configurations: Vec<ForwardDomainConfiguration>,
     cache_configuration: CacheConfiguration,
     client_configuration: ClientConfiguration,
     proxy_configuration: ProxyConfiguration,
@@ -73,6 +95,10 @@ pub struct Configuration {
 impl Configuration {
     pub fn server_configuration(&self) -> &ServerConfiguration {
         &self.server_configuration
+    }
+
+    pub fn forward_domain_configurations(&self) -> &Vec<ForwardDomainConfiguration> {
+        &self.forward_domain_configurations
     }
 
     pub fn cache_configuration(&self) -> &CacheConfiguration {

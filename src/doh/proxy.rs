@@ -1,6 +1,7 @@
 use crate::doh::cache::{get_cache_key, Cache, CacheObject};
 use crate::doh::client::DOHClient;
 use crate::doh::config::Configuration;
+use crate::doh::localdomain::LocalDomainCache;
 use crate::doh::metrics::Metrics;
 
 use log::{debug, info, warn};
@@ -17,6 +18,7 @@ use trust_dns_proto::serialize::binary::{BinDecodable, BinDecoder, BinEncodable,
 
 pub struct DOHProxy {
     configuration: Configuration,
+    local_domain_cache: LocalDomainCache,
     cache: Cache,
     doh_client: DOHClient,
     metrics: Metrics,
@@ -24,11 +26,13 @@ pub struct DOHProxy {
 
 impl DOHProxy {
     pub fn new(configuration: Configuration) -> Arc<Self> {
+        let forward_domain_configurations = configuration.forward_domain_configurations().clone();
         let cache_configuration = configuration.cache_configuration().clone();
         let client_configuration = configuration.client_configuration().clone();
 
         Arc::new(DOHProxy {
             configuration,
+            local_domain_cache: LocalDomainCache::new(forward_domain_configurations),
             cache: Cache::new(cache_configuration),
             doh_client: DOHClient::new(client_configuration),
             metrics: Metrics::new(),
@@ -210,6 +214,17 @@ impl DOHProxy {
         response_message
     }
 
+    fn get_message_for_local_domain(&self, cache_key: &String, request_id: u16) -> Option<Message> {
+        let mut response_message = match self.local_domain_cache.get_response_message(&cache_key) {
+            None => return None,
+            Some(message) => message,
+        };
+
+        response_message.set_id(request_id);
+
+        Some(response_message)
+    }
+
     async fn get_message_for_cache_hit(
         &self,
         cache_key: &String,
@@ -286,6 +301,12 @@ impl DOHProxy {
         let cache_key = get_cache_key(&request_message);
 
         debug!("cache_key = {}", cache_key);
+
+        if let Some(response_message) =
+            self.get_message_for_local_domain(&cache_key, request_message.header().id())
+        {
+            return response_message;
+        }
 
         if let Some(response_message) = self
             .get_message_for_cache_hit(&cache_key, request_message.header().id())

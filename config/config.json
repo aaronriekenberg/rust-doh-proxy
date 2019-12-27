@@ -2,6 +2,18 @@
   "server_configuration": {
     "listen_address": "127.0.0.1:10053"
   },
+  "forward_domain_configurations": [
+    {
+      "name": "apu2.domain.",
+      "ip_address": "192.168.1.1",
+      "ttl_seconds": 60
+    },
+    {
+      "name": "raspberrypi.domain.",
+      "ip_address": "192.168.1.100",
+      "ttl_seconds": 60
+    }
+  ],
   "cache_configuration": {
     "max_size": 20000,
     "max_purges_per_timer_pop": 100
