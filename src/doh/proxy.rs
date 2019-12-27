@@ -206,12 +206,11 @@ impl DOHProxy {
 
         let now = Instant::now();
         let min_ttl_duration = Duration::from_secs(min_ttl_seconds.into());
-        let expiration_time = now + min_ttl_duration;
 
         self.cache
             .put(
                 cache_key,
-                CacheObject::new(response_message.clone(), now, expiration_time),
+                CacheObject::new(response_message.clone(), now, min_ttl_duration),
             )
             .await;
 

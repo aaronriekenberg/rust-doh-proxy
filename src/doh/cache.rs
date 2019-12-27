@@ -45,7 +45,8 @@ pub struct CacheObject {
 }
 
 impl CacheObject {
-    pub fn new(message: Message, cache_time: Instant, expiration_time: Instant) -> Self {
+    pub fn new(message: Message, cache_time: Instant, cache_duration: Duration) -> Self {
+        let expiration_time = cache_time + cache_duration;
         CacheObject {
             message,
             cache_time,
