@@ -152,7 +152,7 @@ impl DOHProxy {
             .clamp_max_ttl_seconds();
 
         let mut found_record_ttl = false;
-        let mut record_min_ttl_seconds: u32 = clamp_min_ttl_seconds;
+        let mut record_min_ttl_seconds = clamp_min_ttl_seconds;
 
         let mut process_record = |record: &mut Record| {
             let ttl = record.ttl();
