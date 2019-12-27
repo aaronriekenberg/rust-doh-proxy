@@ -142,10 +142,10 @@ impl DOHProxy {
         let mut record_min_ttl_seconds: u32 = clamp_min_ttl_seconds;
 
         let mut process_record = |record: &mut Record| {
-            let mut ttl = record.ttl();
+            let ttl = record.ttl();
 
-            ttl = std::cmp::max(ttl, clamp_min_ttl_seconds);
-            ttl = std::cmp::min(ttl, clamp_max_ttl_seconds);
+            let ttl = std::cmp::max(ttl, clamp_min_ttl_seconds);
+            let ttl = std::cmp::min(ttl, clamp_max_ttl_seconds);
 
             if (!found_record_ttl) || (ttl < record_min_ttl_seconds) {
                 record_min_ttl_seconds = ttl;
