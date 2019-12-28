@@ -48,7 +48,7 @@ impl DOHProxy {
 
         let mut encoder = BinEncoder::new(&mut request_buffer);
         match message.emit(&mut encoder) {
-            Ok(()) => {
+            Ok(_) => {
                 debug!(
                     "encoded message request_buffer.len = {}",
                     request_buffer.len()

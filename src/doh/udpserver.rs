@@ -84,7 +84,14 @@ impl UDPServer {
 
         loop {
             let mut buf = vec![0u8; 2048];
-            let (bytes_received, peer) = socket_recv_half.recv_from(&mut buf).await?;
+            let (bytes_received, peer) = match socket_recv_half.recv_from(&mut buf).await {
+                Err(e) => {
+                    warn!("udp recv_from error {}", e);
+                    continue;
+                }
+                Ok(result) => result,
+            };
+            debug!("received {} bytes from {}", bytes_received, peer);
 
             tokio::spawn(Arc::clone(&self).process_udp_packet(
                 response_sender.clone(),

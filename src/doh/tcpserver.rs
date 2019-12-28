@@ -70,7 +70,7 @@ impl TCPServer {
                     warn!("tcp accept error {}", e);
                     continue;
                 }
-                Ok((stream, remote_addr)) => (stream, remote_addr),
+                Ok(result) => result,
             };
             debug!("accepted tcp connection from {}", peer_addr);
 
