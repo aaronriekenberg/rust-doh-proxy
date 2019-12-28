@@ -369,15 +369,14 @@ impl DOHProxy {
     async fn run_periodic_timer(self: Arc<Self>) {
         info!("begin run_periodic_timer");
 
+        let timer_duration = Duration::from_secs(self.configuration.timer_interval_seconds());
+
         loop {
-            tokio::time::delay_for(Duration::from_secs(
-                self.configuration.timer_interval_seconds(),
-            ))
-            .await;
+            tokio::time::delay_for(timer_duration).await;
 
             let (cache_len, cache_items_purged) = self.cache.periodic_purge().await;
             info!(
-                "run_periodic_timer pop metrics: {} cache_len = {} cache_items_purged = {}",
+                "run_periodic_timer metrics: {} cache_len = {} cache_items_purged = {}",
                 self.metrics, cache_len, cache_items_purged,
             );
         }
