@@ -27,8 +27,6 @@ impl TCPServer {
         self: Arc<Self>,
         mut stream: TcpStream,
     ) -> Result<(), Box<dyn Error>> {
-        debug!("process_tcp_stream peer_addr = {}", stream.peer_addr()?);
-
         loop {
             let mut buffer = [0u8; 2];
             stream.read_exact(&mut buffer).await?;
@@ -67,7 +65,15 @@ impl TCPServer {
         info!("listening on tcp {}", listener.local_addr()?);
 
         loop {
-            let (stream, _) = listener.accept().await?;
+            let (stream, peer_addr) = match listener.accept().await {
+                Err(e) => {
+                    warn!("tcp accept error {}", e);
+                    continue;
+                }
+                Ok((stream, remote_addr)) => (stream, remote_addr),
+            };
+            debug!("accepted tcp connection from {}", peer_addr);
+
             let self_clone = Arc::clone(&self);
             tokio::spawn(async move {
                 if let Err(e) = self_clone.process_tcp_stream(stream).await {
