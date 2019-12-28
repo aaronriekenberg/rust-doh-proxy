@@ -1,6 +1,8 @@
 use crate::doh::cache::{get_cache_key, CacheKey};
 use crate::doh::config::{ForwardDomainConfiguration, ReverseDomainConfiguration};
 
+use log::info;
+
 use std::collections::HashMap;
 use std::str::FromStr;
 
@@ -28,6 +30,8 @@ impl LocalDomainCache {
             let message = reverse_domain_configuration_to_message(reverse_domain_configuration);
             cache.insert(get_cache_key(&message), message);
         }
+
+        info!("created local domain cache len {}", cache.len());
 
         LocalDomainCache { cache }
     }
