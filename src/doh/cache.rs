@@ -98,6 +98,10 @@ impl Cache {
     }
 
     pub async fn put(&self, key: CacheKey, cache_object: CacheObject) {
+        if !key.valid() {
+            return;
+        }
+
         let mut guard = self.cache.lock().await;
 
         let mut_cache = guard.borrow_mut();
