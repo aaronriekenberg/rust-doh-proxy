@@ -2,7 +2,7 @@
 
 Simple and super useful DNS over HTTPS proxy server.  Mostly an exercise to learn more async/await in Rust, but stable enough that I'm using this as the only DNS server on my home network.
 
-In short this app listens on normal/legacy DNS UDP and TCP sockets on the local network.  It proxies to an upstream DNS over HTTPS server and caches the results.  Also supports forward and reverse host/IP mappings to support simple authorative lookups on a local domain.
+In short this app listens on normal/legacy DNS UDP and TCP sockets on the local network.  It proxies to an upstream DNS over HTTPS server and caches the results.  Also supports simple forward and reverse host/IP mappings to allow authorative lookups on a local domain.
 
 Tech Stack:
 * [tokio](https://crates.io/crates/tokio) Asnyc I/O runtime for rust.  Using this directly to do async file I/O, TCP and UDP sockets, timers, and timeouts.
