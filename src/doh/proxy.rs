@@ -3,6 +3,7 @@ use crate::doh::client::DOHClient;
 use crate::doh::config::Configuration;
 use crate::doh::localdomain::LocalDomainCache;
 use crate::doh::metrics::Metrics;
+use crate::doh::utils;
 
 use log::{debug, info, warn};
 
@@ -11,10 +12,8 @@ use std::error::Error;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use trust_dns_proto::error::ProtoResult;
 use trust_dns_proto::op::Message;
 use trust_dns_proto::rr::resource::Record;
-use trust_dns_proto::serialize::binary::{BinDecodable, BinDecoder, BinEncodable, BinEncoder};
 
 pub struct DOHProxy {
     configuration: Configuration,
@@ -43,47 +42,6 @@ impl DOHProxy {
         })
     }
 
-    fn encode_dns_message(&self, message: &Message) -> ProtoResult<Vec<u8>> {
-        let mut request_buffer = Vec::new();
-
-        let mut encoder = BinEncoder::new(&mut request_buffer);
-        match message.emit(&mut encoder) {
-            Ok(_) => {
-                debug!(
-                    "encoded message request_buffer.len = {}",
-                    request_buffer.len()
-                );
-                Ok(request_buffer)
-            }
-            Err(e) => {
-                warn!("error encoding message request buffer {}", e);
-                Err(e)
-            }
-        }
-    }
-
-    fn decode_dns_message_vec(&self, buffer: Vec<u8>) -> ProtoResult<Message> {
-        let mut decoder = BinDecoder::new(&buffer);
-        match Message::read(&mut decoder) {
-            Ok(message) => Ok(message),
-            Err(e) => {
-                warn!("error decoding dns message {}", e);
-                Err(e)
-            }
-        }
-    }
-
-    fn decode_dns_message_slice(&self, buffer: &[u8]) -> ProtoResult<Message> {
-        let mut decoder = BinDecoder::new(&buffer);
-        match Message::read(&mut decoder) {
-            Ok(message) => Ok(message),
-            Err(e) => {
-                warn!("error decoding dns message {}", e);
-                Err(e)
-            }
-        }
-    }
-
     fn build_failure_response_message(&self, request: &Message) -> Message {
         let mut response_message = request.clone();
         response_message.set_message_type(trust_dns_proto::op::MessageType::Response);
@@ -92,7 +50,7 @@ impl DOHProxy {
     }
 
     fn build_failure_response_buffer(&self, request: &Message) -> Option<Vec<u8>> {
-        match self.encode_dns_message(&self.build_failure_response_message(request)) {
+        match utils::encode_dns_message(&self.build_failure_response_message(request)) {
             Err(e) => {
                 warn!("build_failure_response_buffer encode error {}", e);
                 None
@@ -104,7 +62,7 @@ impl DOHProxy {
     async fn make_doh_request(&self, request_message: &Message) -> Option<Message> {
         let mut doh_request_message = request_message.clone();
         doh_request_message.set_id(0);
-        let request_buffer = match self.encode_dns_message(&doh_request_message) {
+        let request_buffer = match utils::encode_dns_message(&doh_request_message) {
             Err(e) => {
                 warn!("encode_dns_message error {}", e);
                 return None;
@@ -130,7 +88,7 @@ impl DOHProxy {
 
         debug!("got response_buffer length = {}", response_buffer.len());
 
-        let response_message = match self.decode_dns_message_vec(response_buffer) {
+        let response_message = match utils::decode_dns_message_vec(response_buffer) {
             Err(e) => {
                 warn!("decode_dns_message error {}", e);
                 return None;
@@ -347,7 +305,7 @@ impl DOHProxy {
             request_buffer.len()
         );
 
-        let request_message = match self.decode_dns_message_slice(&request_buffer) {
+        let request_message = match utils::decode_dns_message_slice(&request_buffer) {
             Err(e) => {
                 warn!("decode_dns_message request error {}", e);
                 return None;
@@ -357,7 +315,7 @@ impl DOHProxy {
 
         let response_message = self.process_request_message(&request_message).await;
 
-        match self.encode_dns_message(&response_message) {
+        match utils::encode_dns_message(&response_message) {
             Err(e) => {
                 warn!("encode_dns_message response error {}", e);
                 self.build_failure_response_buffer(&request_message)
