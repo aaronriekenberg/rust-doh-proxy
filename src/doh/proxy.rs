@@ -88,7 +88,7 @@ impl DOHProxy {
 
         debug!("got response_buffer length = {}", response_buffer.len());
 
-        let response_message = match utils::decode_dns_message_vec(response_buffer) {
+        let response_message = match utils::decode_dns_message(&response_buffer) {
             Err(e) => {
                 warn!("decode_dns_message error {}", e);
                 return None;
@@ -305,7 +305,7 @@ impl DOHProxy {
             request_buffer.len()
         );
 
-        let request_message = match utils::decode_dns_message_slice(&request_buffer) {
+        let request_message = match utils::decode_dns_message(&request_buffer) {
             Err(e) => {
                 warn!("decode_dns_message request error {}", e);
                 return None;
