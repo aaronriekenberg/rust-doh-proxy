@@ -1,4 +1,5 @@
 use crate::doh::config::ServerConfiguration;
+use crate::doh::metrics::Metrics;
 use crate::doh::proxy::DOHProxy;
 
 use log::{debug, info, warn};
@@ -12,13 +13,19 @@ use std::sync::Arc;
 
 pub struct TCPServer {
     server_configuration: ServerConfiguration,
+    metrics: Arc<Metrics>,
     doh_proxy: Arc<DOHProxy>,
 }
 
 impl TCPServer {
-    pub fn new(server_configuration: ServerConfiguration, doh_proxy: Arc<DOHProxy>) -> Arc<Self> {
+    pub fn new(
+        server_configuration: ServerConfiguration,
+        metrics: Arc<Metrics>,
+        doh_proxy: Arc<DOHProxy>,
+    ) -> Arc<Self> {
         Arc::new(TCPServer {
             server_configuration,
+            metrics,
             doh_proxy,
         })
     }
@@ -34,6 +41,8 @@ impl TCPServer {
 
             let mut buffer = vec![0u8; usize::from(length)];
             stream.read_exact(&mut buffer).await?;
+
+            self.metrics.increment_tcp_requests();
 
             let buffer = match self.doh_proxy.process_request_packet_buffer(&buffer).await {
                 Some(buffer) => buffer,

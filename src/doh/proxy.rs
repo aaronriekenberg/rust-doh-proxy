@@ -21,7 +21,7 @@ pub struct DOHProxy {
     local_domain_cache: LocalDomainCache,
     cache: Cache,
     doh_client: DOHClient,
-    metrics: Metrics,
+    metrics: Arc<Metrics>,
 }
 
 impl DOHProxy {
@@ -389,6 +389,7 @@ impl DOHProxy {
 
         let tcp_server = crate::doh::tcpserver::TCPServer::new(
             self.configuration.server_configuration().clone(),
+            Arc::clone(&self.metrics),
             Arc::clone(&self),
         );
         tokio::spawn(async move {
@@ -399,6 +400,7 @@ impl DOHProxy {
 
         let udp_server = crate::doh::udpserver::UDPServer::new(
             self.configuration.server_configuration().clone(),
+            Arc::clone(&self.metrics),
             Arc::clone(&self),
         );
         udp_server.run().await

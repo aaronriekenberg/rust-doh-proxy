@@ -1,4 +1,5 @@
 use crate::doh::config::ServerConfiguration;
+use crate::doh::metrics::Metrics;
 use crate::doh::proxy::DOHProxy;
 
 use log::{debug, info, warn};
@@ -13,13 +14,19 @@ struct UDPResponseMessage(Vec<u8>, std::net::SocketAddr);
 
 pub struct UDPServer {
     server_configuration: ServerConfiguration,
+    metrics: Arc<Metrics>,
     doh_proxy: Arc<DOHProxy>,
 }
 
 impl UDPServer {
-    pub fn new(server_configuration: ServerConfiguration, doh_proxy: Arc<DOHProxy>) -> Arc<Self> {
+    pub fn new(
+        server_configuration: ServerConfiguration,
+        metrics: Arc<Metrics>,
+        doh_proxy: Arc<DOHProxy>,
+    ) -> Arc<Self> {
         Arc::new(UDPServer {
             server_configuration,
+            metrics,
             doh_proxy,
         })
     }
@@ -31,6 +38,8 @@ impl UDPServer {
         request_bytes_received: usize,
         peer: std::net::SocketAddr,
     ) {
+        self.metrics.increment_udp_requests();
+
         match self
             .doh_proxy
             .process_request_packet_buffer(&request_buffer[..request_bytes_received])
