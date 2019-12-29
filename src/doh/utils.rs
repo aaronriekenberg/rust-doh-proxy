@@ -23,7 +23,7 @@ pub fn encode_dns_message(message: &Message) -> ProtoResult<Vec<u8>> {
     }
 }
 
-pub fn decode_dns_message_vec(buffer: Vec<u8>) -> ProtoResult<Message> {
+pub fn decode_dns_message_slice(buffer: &[u8]) -> ProtoResult<Message> {
     let mut decoder = BinDecoder::new(&buffer);
     match Message::read(&mut decoder) {
         Ok(message) => Ok(message),
@@ -34,13 +34,6 @@ pub fn decode_dns_message_vec(buffer: Vec<u8>) -> ProtoResult<Message> {
     }
 }
 
-pub fn decode_dns_message_slice(buffer: &[u8]) -> ProtoResult<Message> {
-    let mut decoder = BinDecoder::new(&buffer);
-    match Message::read(&mut decoder) {
-        Ok(message) => Ok(message),
-        Err(e) => {
-            warn!("error decoding dns message {}", e);
-            Err(e)
-        }
-    }
+pub fn decode_dns_message_vec(buffer: Vec<u8>) -> ProtoResult<Message> {
+    decode_dns_message_slice(&buffer)
 }
