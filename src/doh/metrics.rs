@@ -5,6 +5,7 @@ use std::sync::Arc;
 pub struct Metrics {
     tcp_requests: AtomicU64,
     udp_requests: AtomicU64,
+    local_requests: AtomicU64,
     cache_hits: AtomicU64,
     cache_misses: AtomicU64,
 }
@@ -14,6 +15,7 @@ impl Metrics {
         Arc::new(Metrics {
             tcp_requests: AtomicU64::new(0),
             udp_requests: AtomicU64::new(0),
+            local_requests: AtomicU64::new(0),
             cache_hits: AtomicU64::new(0),
             cache_misses: AtomicU64::new(0),
         })
@@ -25,6 +27,14 @@ impl Metrics {
 
     pub fn increment_tcp_requests(&self) {
         self.tcp_requests.fetch_add(1, Ordering::Relaxed);
+    }
+
+    pub fn local_requests(&self) -> u64 {
+        self.local_requests.load(Ordering::Relaxed)
+    }
+
+    pub fn increment_local_requests(&self) {
+        self.local_requests.fetch_add(1, Ordering::Relaxed);
     }
 
     pub fn udp_requests(&self) -> u64 {
@@ -56,9 +66,10 @@ impl fmt::Display for Metrics {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "tcp_requests = {} udp_requests = {} cache_hits = {} cache_misses = {}",
+            "tcp_requests = {} udp_requests = {} local_requests = {} cache_hits = {} cache_misses = {}",
             self.tcp_requests(),
             self.udp_requests(),
+            self.local_requests(),
             self.cache_hits(),
             self.cache_misses()
         )

@@ -270,6 +270,7 @@ impl DOHProxy {
         if let Some(response_message) =
             self.get_message_for_local_domain(&cache_key, request_message.header().id())
         {
+            self.metrics.increment_local_requests();
             return response_message;
         }
 
