@@ -35,14 +35,13 @@ impl UDPServer {
         self: Arc<Self>,
         response_sender: mpsc::UnboundedSender<UDPResponseMessage>,
         request_buffer: Vec<u8>,
-        request_bytes_received: usize,
         peer: std::net::SocketAddr,
     ) {
         self.metrics.increment_udp_requests();
 
         match self
             .doh_proxy
-            .process_request_packet_buffer(&request_buffer[..request_bytes_received])
+            .process_request_packet_buffer(&request_buffer)
             .await
         {
             Some(response_buffer) => {
@@ -102,12 +101,14 @@ impl UDPServer {
             };
             debug!("received {} bytes from {}", bytes_received, peer);
 
-            tokio::spawn(Arc::clone(&self).process_udp_packet(
-                response_sender.clone(),
-                buf,
-                bytes_received,
-                peer,
-            ));
+            if bytes_received == 0 {
+                continue;
+            }
+
+            buf.truncate(bytes_received);
+            buf.shrink_to_fit();
+
+            tokio::spawn(Arc::clone(&self).process_udp_packet(response_sender.clone(), buf, peer));
         }
     }
 }
