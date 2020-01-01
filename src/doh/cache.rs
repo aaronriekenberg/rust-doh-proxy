@@ -66,8 +66,8 @@ impl CacheObject {
         now > self.expiration_time
     }
 
-    pub fn duration_in_cache(&self) -> Duration {
-        self.cache_time.elapsed()
+    pub fn duration_in_cache(&self, now: Instant) -> Duration {
+        now - self.cache_time
     }
 }
 

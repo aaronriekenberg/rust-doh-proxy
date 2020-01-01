@@ -206,11 +206,13 @@ impl DOHProxy {
             Some(cache_object) => cache_object,
         };
 
-        if cache_object.expired(Instant::now()) {
+        let now = Instant::now();
+
+        if cache_object.expired(now) {
             return None;
         }
 
-        let seconds_to_subtract_from_ttl = cache_object.duration_in_cache().as_secs();
+        let seconds_to_subtract_from_ttl = cache_object.duration_in_cache(now).as_secs();
 
         let adjust_record_ttl = |record: Record| -> Option<Record> {
             let original_ttl = u64::from(record.ttl());
