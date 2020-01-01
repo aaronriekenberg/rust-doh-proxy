@@ -14,22 +14,19 @@ pub enum DOHResponse {
     HTTPRequestSuccess(Vec<u8>),
 }
 
-type HyperClient = hyper::client::Client<
-    hyper_rustls::HttpsConnector<hyper::client::connect::HttpConnector>,
-    hyper::Body,
->;
-
 pub struct DOHClient {
     client_configuration: ClientConfiguration,
-    hyper_client: HyperClient,
+    client: reqwest::Client,
 }
 
 impl DOHClient {
     pub fn new(client_configuration: ClientConfiguration) -> Self {
-        let https = hyper_rustls::HttpsConnector::new();
         DOHClient {
             client_configuration,
-            hyper_client: hyper::Client::builder().build::<_, hyper::Body>(https),
+            client: reqwest::Client::builder()
+                .use_rustls_tls()
+                .build()
+                .expect("error creating reqwest client"),
         }
     }
 
@@ -37,26 +34,25 @@ impl DOHClient {
         &self,
         request_buffer: Vec<u8>,
     ) -> Result<DOHResponse, Box<dyn Error>> {
-        let request = hyper::Request::builder()
-            .method("POST")
-            .uri(self.client_configuration.remote_url())
-            .header("Content-Type", "application/dns-message")
-            .header("Accept", "application/dns-message")
-            .body(hyper::Body::from(request_buffer))?;
-
         let response = timeout(
             Duration::from_secs(self.client_configuration.request_timeout_seconds()),
-            self.hyper_client.request(request),
+            self.client
+                .post(self.client_configuration.remote_url())
+                .header("Content-Type", "application/dns-message")
+                .header("Accept", "application/dns-message")
+                .body(request_buffer)
+                .send(),
         )
         .await??;
 
-        debug!("after hyper post response status = {}", response.status());
+        debug!("after reqwest post response status = {}", response.status());
 
-        if response.status() != hyper::StatusCode::OK {
+        if response.status() != reqwest::StatusCode::OK {
             return Ok(DOHResponse::HTTPRequestError);
         }
 
-        let body = hyper::body::aggregate(response).await?;
+        let body = response.bytes().await?;
+
         let body_vec = body.bytes().to_vec();
         Ok(DOHResponse::HTTPRequestSuccess(body_vec))
     }
