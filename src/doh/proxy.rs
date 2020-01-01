@@ -99,7 +99,7 @@ impl DOHProxy {
         Some(response_message)
     }
 
-    fn clamp_and_get_min_ttl_seconds(&self, response_message: &mut Message) -> u32 {
+    fn clamp_and_get_min_ttl_duration(&self, response_message: Message) -> (Duration, Message) {
         let clamp_min_ttl_seconds = self
             .configuration
             .proxy_configuration()
@@ -112,7 +112,7 @@ impl DOHProxy {
         let mut found_record_ttl = false;
         let mut record_min_ttl_seconds = clamp_min_ttl_seconds;
 
-        let mut process_record = |record: &mut Record| {
+        let mut process_record = |record: Record| -> Record {
             let ttl = record.ttl();
 
             let ttl = std::cmp::max(ttl, clamp_min_ttl_seconds);
@@ -122,29 +122,35 @@ impl DOHProxy {
                 record_min_ttl_seconds = ttl;
                 found_record_ttl = true;
             }
+
+            let mut record = record;
             record.set_ttl(ttl);
+
+            record
         };
 
-        for mut record in response_message.take_answers() {
-            process_record(&mut record);
-            response_message.add_answer(record);
+        let mut response_message = response_message;
+
+        for record in response_message.take_answers() {
+            response_message.add_answer(process_record(record));
         }
-        for mut record in response_message.take_name_servers() {
-            process_record(&mut record);
-            response_message.add_name_server(record);
+        for record in response_message.take_name_servers() {
+            response_message.add_name_server(process_record(record));
         }
-        for mut record in response_message.take_additionals() {
-            process_record(&mut record);
-            response_message.add_additional(record);
+        for record in response_message.take_additionals() {
+            response_message.add_additional(process_record(record));
         }
 
-        record_min_ttl_seconds
+        (
+            Duration::from_secs(record_min_ttl_seconds.into()),
+            response_message,
+        )
     }
 
     async fn clamp_ttl_and_cache_response(
         &self,
         cache_key: CacheKey,
-        mut response_message: Message,
+        response_message: Message,
     ) -> Message {
         if !((response_message.response_code() == trust_dns_proto::op::ResponseCode::NoError)
             || (response_message.response_code() == trust_dns_proto::op::ResponseCode::NXDomain))
@@ -152,9 +158,10 @@ impl DOHProxy {
             return response_message;
         }
 
-        let min_ttl_seconds = self.clamp_and_get_min_ttl_seconds(&mut response_message);
+        let (min_ttl_duration, response_message) =
+            self.clamp_and_get_min_ttl_duration(response_message);
 
-        if min_ttl_seconds == 0 {
+        if min_ttl_duration.as_secs() == 0 {
             return response_message;
         }
 
@@ -163,7 +170,6 @@ impl DOHProxy {
         }
 
         let now = Instant::now();
-        let min_ttl_duration = Duration::from_secs(min_ttl_seconds.into());
 
         self.cache
             .put(
@@ -195,7 +201,7 @@ impl DOHProxy {
         cache_key: &CacheKey,
         request_id: u16,
     ) -> Option<Message> {
-        let mut cache_object = match self.cache.get(&cache_key).await {
+        let cache_object = match self.cache.get(&cache_key).await {
             None => return None,
             Some(cache_object) => cache_object,
         };
@@ -205,12 +211,12 @@ impl DOHProxy {
         }
 
         let seconds_to_subtract_from_ttl = cache_object.duration_in_cache().as_secs();
-        let mut ok = true;
 
-        let mut adjust_record_ttl = |record: &mut Record| {
+        let adjust_record_ttl = |record: Record| -> Option<Record> {
             let original_ttl = u64::from(record.ttl());
+
             if seconds_to_subtract_from_ttl > original_ttl {
-                ok = false;
+                None
             } else {
                 let new_ttl = original_ttl - seconds_to_subtract_from_ttl;
                 let new_ttl = match u32::try_from(new_ttl) {
@@ -220,31 +226,35 @@ impl DOHProxy {
                             "get_message_for_cache_hit new_ttl overflow {} {}",
                             new_ttl, e
                         );
-                        ok = false;
-                        0
+                        return None;
                     }
                 };
+                let mut record = record;
                 record.set_ttl(new_ttl);
+                Some(record)
             }
         };
 
+        let mut cache_object = cache_object;
         let response_message = cache_object.message_mut();
 
-        for mut record in response_message.take_answers() {
-            adjust_record_ttl(&mut record);
-            response_message.add_answer(record);
+        for record in response_message.take_answers() {
+            response_message.add_answer(match adjust_record_ttl(record) {
+                None => return None,
+                Some(record) => record,
+            });
         }
-        for mut record in response_message.take_name_servers() {
-            adjust_record_ttl(&mut record);
-            response_message.add_name_server(record);
+        for record in response_message.take_name_servers() {
+            response_message.add_name_server(match adjust_record_ttl(record) {
+                None => return None,
+                Some(record) => record,
+            });
         }
-        for mut record in response_message.take_additionals() {
-            adjust_record_ttl(&mut record);
-            response_message.add_additional(record);
-        }
-
-        if !ok {
-            return None;
+        for record in response_message.take_additionals() {
+            response_message.add_additional(match adjust_record_ttl(record) {
+                None => return None,
+                Some(record) => record,
+            });
         }
 
         response_message.set_id(request_id);
