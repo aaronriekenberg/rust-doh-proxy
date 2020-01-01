@@ -7,8 +7,8 @@ In short this app listens on normal/legacy DNS UDP and TCP sockets on the local 
 Tech Stack:
 * [tokio](https://crates.io/crates/tokio) Asnyc I/O runtime for rust.  Using this directly to do async file I/O, TCP and UDP sockets, timers, and timeouts.
 * [trust-dns-proto](https://crates.io/crates/trust-dns-proto) a nice library for marshalling and umarshalling binary DNS messages to Rust DTOs.  Ignoring the warning that this library should not be used directly. :)
-* [RFC8484 DNS over HTTPS](https://tools.ietf.org/html/rfc8484) for upstream requests.
-* [hyper](https://crates.io/crates/hyper) + [hyper-rustls](https://crates.io/crates/hyper-rustls) HTTP client.  This does HTTP2, is based on Tokio, and supports async/await.
+* [RFC8484 DNS over HTTPS](https://tools.ietf.org/html/rfc8484) protocol for upstream requests.
+* [reqwest](https://crates.io/crates/reqwest) HTTP client.  This does HTTP2, is based on hyper (which is based on tokio), and supports async/await.
 * [lru](https://crates.io/crates/lru) LRU cache.
 
 ## Configuration
