@@ -7,8 +7,6 @@ use log::debug;
 use std::error::Error;
 use std::time::Duration;
 
-use tokio::time::timeout;
-
 pub enum DOHResponse {
     HTTPRequestError,
     HTTPRequestSuccess(Vec<u8>),
@@ -21,10 +19,12 @@ pub struct DOHClient {
 
 impl DOHClient {
     pub fn new(client_configuration: ClientConfiguration) -> Self {
+        let timeout_duration = Duration::from_secs(client_configuration.request_timeout_seconds());
         DOHClient {
             client_configuration,
             client: reqwest::Client::builder()
                 .use_rustls_tls()
+                .timeout(timeout_duration)
                 .build()
                 .expect("error creating reqwest client"),
         }
@@ -34,16 +34,14 @@ impl DOHClient {
         &self,
         request_buffer: Vec<u8>,
     ) -> Result<DOHResponse, Box<dyn Error>> {
-        let response = timeout(
-            Duration::from_secs(self.client_configuration.request_timeout_seconds()),
-            self.client
-                .post(self.client_configuration.remote_url())
-                .header("Content-Type", "application/dns-message")
-                .header("Accept", "application/dns-message")
-                .body(request_buffer)
-                .send(),
-        )
-        .await??;
+        let response = self
+            .client
+            .post(self.client_configuration.remote_url())
+            .header("Content-Type", "application/dns-message")
+            .header("Accept", "application/dns-message")
+            .body(request_buffer)
+            .send()
+            .await?;
 
         debug!("after reqwest post response status = {}", response.status());
 
