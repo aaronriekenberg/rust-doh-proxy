@@ -16,3 +16,8 @@ See config directory for examples.
 
 ## Systemd
 See systemd directory for an example user unit file.
+
+## Cross compile
+Using [cross](https://github.com/rust-embedded/cross) to compile for x86_64 Linux on MacOS:
+
+```cross build --target x86_64-unknown-linux-gnu --release```
