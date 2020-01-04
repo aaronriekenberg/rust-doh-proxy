@@ -24,22 +24,22 @@ pub struct DOHProxy {
 }
 
 impl DOHProxy {
-    pub fn new(configuration: Configuration) -> Arc<Self> {
+    pub fn new(configuration: Configuration) -> Result<Arc<Self>, Box<dyn Error>> {
         let forward_domain_configurations = configuration.forward_domain_configurations().clone();
         let reverse_domain_configurations = configuration.reverse_domain_configurations().clone();
         let cache_configuration = configuration.cache_configuration().clone();
         let client_configuration = configuration.client_configuration().clone();
 
-        Arc::new(DOHProxy {
+        Ok(Arc::new(DOHProxy {
             configuration,
             local_domain_cache: LocalDomainCache::new(
                 forward_domain_configurations,
                 reverse_domain_configurations,
-            ),
+            )?,
             cache: Cache::new(cache_configuration),
-            doh_client: DOHClient::new(client_configuration),
+            doh_client: DOHClient::new(client_configuration)?,
             metrics: Metrics::new(),
-        })
+        }))
     }
 
     fn build_failure_response_message(&self, request: &Message) -> Message {

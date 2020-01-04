@@ -4,6 +4,7 @@ use crate::doh::config::{ForwardDomainConfiguration, ReverseDomainConfiguration}
 use log::info;
 
 use std::collections::HashMap;
+use std::error::Error;
 use std::str::FromStr;
 
 use trust_dns_proto::op::{Message, MessageType, Query, ResponseCode};
@@ -18,22 +19,22 @@ impl LocalDomainCache {
     pub fn new(
         forward_domain_configurations: Vec<ForwardDomainConfiguration>,
         reverse_domain_configurations: Vec<ReverseDomainConfiguration>,
-    ) -> Self {
+    ) -> Result<Self, Box<dyn Error>> {
         let mut cache = HashMap::new();
 
         for forward_domain_configuration in forward_domain_configurations {
-            let message = forward_domain_configuration_to_message(forward_domain_configuration);
+            let message = forward_domain_configuration_to_message(forward_domain_configuration)?;
             cache.insert(get_cache_key(&message), message);
         }
 
         for reverse_domain_configuration in reverse_domain_configurations {
-            let message = reverse_domain_configuration_to_message(reverse_domain_configuration);
+            let message = reverse_domain_configuration_to_message(reverse_domain_configuration)?;
             cache.insert(get_cache_key(&message), message);
         }
 
         info!("created local domain cache len {}", cache.len());
 
-        LocalDomainCache { cache }
+        Ok(LocalDomainCache { cache })
     }
 
     pub fn get_response_message(&self, cache_key: &CacheKey) -> Option<Message> {
@@ -46,13 +47,11 @@ impl LocalDomainCache {
 
 fn forward_domain_configuration_to_message(
     forward_domain_configuration: ForwardDomainConfiguration,
-) -> Message {
-    let name =
-        Name::from_str(&forward_domain_configuration.name()).expect("invalid forward domain name");
-    let ip_address = forward_domain_configuration
-        .ip_address()
-        .parse()
-        .expect("invalid forward domain ip address");
+) -> Result<Message, Box<dyn Error>> {
+    let name = Name::from_str(&forward_domain_configuration.name())
+        .map_err(|e| format!("invalid forward name: {}", e))?;
+
+    let ip_address = forward_domain_configuration.ip_address().parse()?;
 
     let mut message = Message::new();
     message.set_message_type(MessageType::Response);
@@ -69,15 +68,17 @@ fn forward_domain_configuration_to_message(
     );
     message.add_answer(answer);
 
-    message
+    Ok(message)
 }
 
 fn reverse_domain_configuration_to_message(
     reverse_domain_configuration: ReverseDomainConfiguration,
-) -> Message {
+) -> Result<Message, Box<dyn Error>> {
     let reverse_address = Name::from_str(&reverse_domain_configuration.reverse_address())
-        .expect("invalid reverse address");
-    let name = Name::from_str(&reverse_domain_configuration.name()).expect("invalid reverse name");
+        .map_err(|e| format!("invalid reverse_address: {}", e))?;
+
+    let name = Name::from_str(&reverse_domain_configuration.name())
+        .map_err(|e| format!("invalid reverse name: {}", e))?;
 
     let mut message = Message::new();
     message.set_message_type(MessageType::Response);
@@ -94,5 +95,5 @@ fn reverse_domain_configuration_to_message(
     );
     message.add_answer(answer);
 
-    message
+    Ok(message)
 }

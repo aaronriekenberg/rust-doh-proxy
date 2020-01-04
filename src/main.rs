@@ -12,7 +12,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let configuration = doh::config::read_configuration(config_file).await?;
 
-    let doh_proxy = doh::proxy::DOHProxy::new(configuration);
+    let doh_proxy = doh::proxy::DOHProxy::new(configuration)?;
 
     doh_proxy.run().await
 }

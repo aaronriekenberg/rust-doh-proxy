@@ -18,16 +18,15 @@ pub struct DOHClient {
 }
 
 impl DOHClient {
-    pub fn new(client_configuration: ClientConfiguration) -> Self {
+    pub fn new(client_configuration: ClientConfiguration) -> Result<Self, Box<dyn Error>> {
         let timeout_duration = Duration::from_secs(client_configuration.request_timeout_seconds());
-        DOHClient {
+        Ok(DOHClient {
             client_configuration,
             client: reqwest::Client::builder()
                 .use_rustls_tls()
                 .timeout(timeout_duration)
-                .build()
-                .expect("error creating reqwest client"),
-        }
+                .build()?,
+        })
     }
 
     pub async fn make_doh_request(
