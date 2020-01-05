@@ -59,7 +59,10 @@ impl DOHClient {
                     return Ok(DOHResponse::HTTPRequestError);
                 }
             }
-            None => debug!("content_length = None"),
+            None => {
+                warn!("content_length = None");
+                return Ok(DOHResponse::HTTPRequestError);
+            }
         }
 
         let body = response.bytes().await?;
