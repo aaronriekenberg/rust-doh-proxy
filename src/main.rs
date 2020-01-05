@@ -1,10 +1,15 @@
 mod doh;
 
+use log::info;
+
 use std::error::Error;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     env_logger::builder().format_timestamp(None).init();
+
+    info!("Build SHA: {}", env!("VERGEN_SHA"));
+    info!("Build Timestamp: {}", env!("VERGEN_BUILD_TIMESTAMP"));
 
     let config_file = std::env::args()
         .nth(1)
