@@ -2,10 +2,12 @@ use bytes::Buf;
 
 use crate::doh::config::ClientConfiguration;
 
-use log::debug;
+use log::{debug, warn};
 
 use std::error::Error;
 use std::time::Duration;
+
+const MAX_CONTENT_LENGTH: u64 = 65_535; // RFC 8484 section 6
 
 pub enum DOHResponse {
     HTTPRequestError,
@@ -45,7 +47,19 @@ impl DOHClient {
         debug!("after reqwest post response status = {}", response.status());
 
         if response.status() != reqwest::StatusCode::OK {
+            warn!("got error response status {}", response.status().as_u16());
             return Ok(DOHResponse::HTTPRequestError);
+        }
+
+        match response.content_length() {
+            Some(content_length) => {
+                debug!("content_length = {}", content_length);
+                if content_length > MAX_CONTENT_LENGTH {
+                    warn!("got too long response content_length = {}", content_length);
+                    return Ok(DOHResponse::HTTPRequestError);
+                }
+            }
+            None => debug!("content_length = None"),
         }
 
         let body = response.bytes().await?;
