@@ -365,7 +365,7 @@ impl DOHProxy {
         );
         tokio::spawn(async move {
             if let Err(e) = tcp_server.run().await {
-                warn!("run_tcp_server returned error {}", e);
+                panic!("run_tcp_server returned error {}", e);
             }
         });
 
