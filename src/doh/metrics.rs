@@ -1,6 +1,8 @@
 use std::fmt;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
+
+const ORDER: std::sync::atomic::Ordering = std::sync::atomic::Ordering::Relaxed;
 
 pub struct Metrics {
     tcp_requests: AtomicU64,
@@ -22,43 +24,43 @@ impl Metrics {
     }
 
     pub fn tcp_requests(&self) -> u64 {
-        self.tcp_requests.load(Ordering::Relaxed)
+        self.tcp_requests.load(ORDER)
     }
 
     pub fn increment_tcp_requests(&self) {
-        self.tcp_requests.fetch_add(1, Ordering::Relaxed);
+        self.tcp_requests.fetch_add(1, ORDER);
     }
 
     pub fn local_requests(&self) -> u64 {
-        self.local_requests.load(Ordering::Relaxed)
+        self.local_requests.load(ORDER)
     }
 
     pub fn increment_local_requests(&self) {
-        self.local_requests.fetch_add(1, Ordering::Relaxed);
+        self.local_requests.fetch_add(1, ORDER);
     }
 
     pub fn udp_requests(&self) -> u64 {
-        self.udp_requests.load(Ordering::Relaxed)
+        self.udp_requests.load(ORDER)
     }
 
     pub fn increment_udp_requests(&self) {
-        self.udp_requests.fetch_add(1, Ordering::Relaxed);
+        self.udp_requests.fetch_add(1, ORDER);
     }
 
     pub fn cache_hits(&self) -> u64 {
-        self.cache_hits.load(Ordering::Relaxed)
+        self.cache_hits.load(ORDER)
     }
 
     pub fn increment_cache_hits(&self) {
-        self.cache_hits.fetch_add(1, Ordering::Relaxed);
+        self.cache_hits.fetch_add(1, ORDER);
     }
 
     pub fn cache_misses(&self) -> u64 {
-        self.cache_misses.load(Ordering::Relaxed)
+        self.cache_misses.load(ORDER)
     }
 
     pub fn increment_cache_misses(&self) {
-        self.cache_misses.fetch_add(1, Ordering::Relaxed);
+        self.cache_misses.fetch_add(1, ORDER);
     }
 }
 
