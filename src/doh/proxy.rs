@@ -171,10 +171,12 @@ impl DOHProxy {
 
         let now = Instant::now();
 
+        let mut response_message_clone = response_message.clone();
+        response_message_clone.set_id(0);
         self.cache
             .put(
                 cache_key,
-                CacheObject::new(response_message.clone(), now, min_ttl_duration),
+                CacheObject::new(response_message_clone, now, min_ttl_duration),
             )
             .await;
 
