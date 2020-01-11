@@ -1,5 +1,5 @@
 [package]
-name = "rust-dns"
+name = "rust-doh-proxy"
 version = "0.1.0"
 authors = ["Aaron Riekenberg <aaron.riekenberg@gmail.com>"]
 edition = "2018"
