@@ -11,6 +11,30 @@ Tech Stack:
 * [reqwest](https://crates.io/crates/reqwest) HTTP client.  This does HTTP2, is based on hyper (which is based on tokio), and supports async/await.
 * [lru](https://crates.io/crates/lru) LRU cache.
 
+## How do I run this?
+After building with cargo, you can run the app as follow.  Since this is using [env_logger](https://crates.io/crates/env_logger) need to set RUST_LOG variable to get log output:
+
+```
+RUST_LOG=info ./target/debug/rust-doh-proxy ./config/config.json
+```
+
+If all is well you will see these logs that the app is listening on 127.0.0.1:10053.
+
+```
+[INFO  rust_doh_proxy::doh::udpserver] listening on udp 127.0.0.1:10053
+[INFO  rust_doh_proxy::doh::tcpserver] listening on tcp 127.0.0.1:10053
+```
+
+Then you can use [dig](https://en.wikipedia.org/wiki/Dig_(command)) for example to make a DNS query to the app:
+```
+dig -p 10053 @127.0.0.1 google.com
+```
+
+Normally DNS uses a privileged port 53.  In this example this app is using unprivileged port 10053 to run as a normal user.  The listen address and port are configurable in the configuration json file.
+
+To actually use this app as a server and accept connections on port 53 I use nftables on linux with a redirect rule to redirect incoming requests on port 53 to port 10053.
+
+
 ## Configuration
 See config directory for examples.
 
