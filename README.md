@@ -1,4 +1,4 @@
-# rust-dns
+# rust-doh-proxy
 
 Simple and super useful DNS over HTTPS proxy server.  Mostly an exercise to learn more async/await in Rust, but stable enough that I'm using this as the only DNS server on my home network.
 
