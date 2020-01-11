@@ -1,0 +1,13 @@
+# ~/.config/systemd/user/rust-doh-proxy.service
+
+[Unit]
+AssertPathExists=%h/rust-doh-proxy/target/release/rust-doh-proxy
+
+[Service]
+WorkingDirectory=%h/rust-doh-proxy
+Environment="RUST_LOG=info"
+ExecStart=%h/rust-doh-proxy/target/release/rust-doh-proxy ./config/%H-config.json
+Restart=always
+
+[Install]
+WantedBy=default.target
