@@ -1,6 +1,6 @@
 [package]
 name = "rust-doh-proxy"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Aaron Riekenberg <aaron.riekenberg@gmail.com>"]
 edition = "2018"
 build = "build.rs"
@@ -8,6 +8,7 @@ categories = ["asynchronous", "network-programming", "web-programming"]
 description = "Rust DNS over HTTPS proxy application"
 keywords = ["dns", "doh"]
 license = "MIT"
+readme = "README.md"
 repository = "https://github.com/aaronriekenberg/rust-doh-proxy"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
