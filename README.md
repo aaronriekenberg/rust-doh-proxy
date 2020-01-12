@@ -12,7 +12,7 @@ Tech Stack:
 * [lru](https://crates.io/crates/lru) LRU cache.
 
 ## How do I run this?
-After building with cargo, you can run the app as follow.  Since this is using [env_logger](https://crates.io/crates/env_logger) need to set RUST_LOG variable to get log output:
+After building with cargo, you can run the app as follows.  Since this is using [env_logger](https://crates.io/crates/env_logger) need to set RUST_LOG variable to get log output:
 
 ```
 RUST_LOG=info ./target/debug/rust-doh-proxy ./config/config.json
@@ -32,14 +32,14 @@ dig -p 10053 @127.0.0.1 google.com
 
 Normally DNS uses a privileged port 53.  In this example this app is using unprivileged port 10053 to run as a normal user.  The listen address and port are configurable in the configuration json file.
 
-To actually use this app as a server and accept connections on port 53 I use nftables on linux with a redirect rule to redirect incoming requests on port 53 to port 10053.
+To use this app as a DNS server that serves requests on port 53, I use nftables on linux with a [redirect rule](https://wiki.nftables.org/wiki-nftables/index.php/Performing_Network_Address_Translation_(NAT)#Redirect) to redirect incoming requests on port 53 to port 10053.
 
 
 ## Configuration
-See config directory for examples.
+See [config](https://github.com/aaronriekenberg/rust-doh-proxy/tree/master/config) directory for examples.
 
 ## Systemd
-See systemd directory for an example user unit file.
+See [systemd](https://github.com/aaronriekenberg/rust-doh-proxy/tree/master/systemd) directory for an example user unit file.
 
 ## Cross compile
 Using [cross](https://github.com/rust-embedded/cross) to compile for x86_64 Linux on MacOS:
