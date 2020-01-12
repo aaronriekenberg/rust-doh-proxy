@@ -4,7 +4,6 @@ use tokio::sync::Mutex;
 
 use trust_dns_proto::op::Message;
 
-use std::borrow::BorrowMut;
 use std::time::{Duration, Instant};
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -87,9 +86,7 @@ impl Cache {
     }
 
     pub async fn get(&self, key: &CacheKey) -> Option<CacheObject> {
-        let mut guard = self.cache.lock().await;
-
-        let mut_cache = guard.borrow_mut();
+        let mut mut_cache = self.cache.lock().await;
 
         match mut_cache.get(key) {
             Some(v) => Some(v.clone()),
@@ -102,17 +99,13 @@ impl Cache {
             return;
         }
 
-        let mut guard = self.cache.lock().await;
-
-        let mut_cache = guard.borrow_mut();
+        let mut mut_cache = self.cache.lock().await;
 
         mut_cache.put(key, cache_object);
     }
 
     pub async fn periodic_purge(&self) -> (usize, usize) {
-        let mut guard = self.cache.lock().await;
-
-        let mut_cache = guard.borrow_mut();
+        let mut mut_cache = self.cache.lock().await;
 
         let mut items_purged: usize = 0;
 
