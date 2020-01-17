@@ -41,7 +41,7 @@ impl UDPServer {
 
         let response_buffer = match self
             .doh_proxy
-            .process_request_packet_buffer(&request_buffer)
+            .process_request_packet_buffer(request_buffer)
             .await
         {
             None => {

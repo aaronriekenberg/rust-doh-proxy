@@ -313,7 +313,7 @@ impl DOHProxy {
 
     pub(in crate::doh) async fn process_request_packet_buffer(
         &self,
-        request_buffer: &[u8],
+        request_buffer: Vec<u8>,
     ) -> Option<Vec<u8>> {
         debug!(
             "process_request_packet_buffer received {}",

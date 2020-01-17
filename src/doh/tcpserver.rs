@@ -44,7 +44,7 @@ impl TCPServer {
 
             self.metrics.increment_tcp_requests();
 
-            let buffer = match self.doh_proxy.process_request_packet_buffer(&buffer).await {
+            let buffer = match self.doh_proxy.process_request_packet_buffer(buffer).await {
                 Some(buffer) => buffer,
                 None => {
                     warn!("got None response from process_request_packet_buffer");
