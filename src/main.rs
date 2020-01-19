@@ -8,9 +8,12 @@ use std::error::Error;
 async fn main() -> Result<(), Box<dyn Error>> {
     env_logger::builder().format_timestamp(None).init();
 
-    info!("Build SEMVER:\t{}", env!("VERGEN_SEMVER_LIGHTWEIGHT"));
-    info!("Build Timestamp:\t{}", env!("VERGEN_BUILD_TIMESTAMP"));
-    info!("Build SHA:\t{}", env!("VERGEN_SHA"));
+    info!(
+        "Build SEMVER: {} Timestamp: {} SHA: {}",
+        env!("VERGEN_SEMVER_LIGHTWEIGHT"),
+        env!("VERGEN_BUILD_TIMESTAMP"),
+        env!("VERGEN_SHA")
+    );
 
     let config_file = std::env::args()
         .nth(1)
