@@ -94,9 +94,10 @@ impl UDPServer {
             Arc::clone(&self).run_udp_response_sender(response_receiver, socket_send_half),
         );
 
+        let mut receive_buffer = vec![0u8; 2048];
         loop {
-            let mut buf = vec![0u8; 2048];
-            let (bytes_received, peer) = match socket_recv_half.recv_from(&mut buf).await {
+            let (bytes_received, peer) = match socket_recv_half.recv_from(&mut receive_buffer).await
+            {
                 Err(e) => {
                     warn!("udp recv_from error {}", e);
                     continue;
@@ -109,10 +110,13 @@ impl UDPServer {
                 continue;
             }
 
-            buf.truncate(bytes_received);
-            buf.shrink_to_fit();
+            let packet_buffer = receive_buffer[..bytes_received].to_vec();
 
-            tokio::spawn(Arc::clone(&self).process_udp_packet(response_sender.clone(), buf, peer));
+            tokio::spawn(Arc::clone(&self).process_udp_packet(
+                response_sender.clone(),
+                packet_buffer,
+                peer,
+            ));
         }
     }
 }
