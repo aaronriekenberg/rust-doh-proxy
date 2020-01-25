@@ -4,7 +4,7 @@ use trust_dns_proto::error::ProtoResult;
 use trust_dns_proto::op::Message;
 use trust_dns_proto::serialize::binary::{BinDecodable, BinDecoder, BinEncodable, BinEncoder};
 
-pub fn encode_dns_message(message: &Message) -> ProtoResult<Vec<u8>> {
+pub fn encode_dns_message(message: Message) -> ProtoResult<Vec<u8>> {
     let mut request_buffer = Vec::new();
 
     let mut encoder = BinEncoder::new(&mut request_buffer);
@@ -23,7 +23,7 @@ pub fn encode_dns_message(message: &Message) -> ProtoResult<Vec<u8>> {
     }
 }
 
-pub fn decode_dns_message(buffer: &[u8]) -> ProtoResult<Message> {
+pub fn decode_dns_message(buffer: Vec<u8>) -> ProtoResult<Message> {
     let mut decoder = BinDecoder::new(&buffer);
     match Message::read(&mut decoder) {
         Ok(message) => Ok(message),

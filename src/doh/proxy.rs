@@ -50,7 +50,7 @@ impl DOHProxy {
     }
 
     fn build_failure_response_buffer(&self, request: &Message) -> Option<Vec<u8>> {
-        match utils::encode_dns_message(&self.build_failure_response_message(request)) {
+        match utils::encode_dns_message(self.build_failure_response_message(request)) {
             Err(e) => {
                 warn!("build_failure_response_buffer encode error {}", e);
                 None
@@ -62,7 +62,7 @@ impl DOHProxy {
     async fn make_doh_request(&self, request_message: &Message) -> Option<Message> {
         let mut doh_request_message = request_message.clone();
         doh_request_message.set_id(0);
-        let request_buffer = match utils::encode_dns_message(&doh_request_message) {
+        let request_buffer = match utils::encode_dns_message(doh_request_message) {
             Err(e) => {
                 warn!("encode_dns_message error {}", e);
                 return None;
@@ -88,7 +88,7 @@ impl DOHProxy {
 
         debug!("got response_buffer length = {}", response_buffer.len());
 
-        let response_message = match utils::decode_dns_message(&response_buffer) {
+        let response_message = match utils::decode_dns_message(response_buffer) {
             Err(e) => {
                 warn!("decode_dns_message error {}", e);
                 return None;
@@ -320,7 +320,7 @@ impl DOHProxy {
             request_buffer.len()
         );
 
-        let request_message = match utils::decode_dns_message(&request_buffer) {
+        let request_message = match utils::decode_dns_message(request_buffer) {
             Err(e) => {
                 warn!("decode_dns_message request error {}", e);
                 return None;
@@ -330,7 +330,7 @@ impl DOHProxy {
 
         let response_message = self.process_request_message(&request_message).await;
 
-        match utils::encode_dns_message(&response_message) {
+        match utils::encode_dns_message(response_message) {
             Err(e) => {
                 warn!("encode_dns_message response error {}", e);
                 self.build_failure_response_buffer(&request_message)
