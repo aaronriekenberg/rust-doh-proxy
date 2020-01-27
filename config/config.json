@@ -32,7 +32,8 @@
   },
   "client_configuration": {
     "remote_url": "https://dns.google/dns-query",
-    "request_timeout_seconds": 5
+    "request_timeout_seconds": 5,
+    "max_outstanding_requests": 1
   },
   "proxy_configuration": {
     "clamp_min_ttl_seconds": 10,

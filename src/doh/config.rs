@@ -80,6 +80,7 @@ impl CacheConfiguration {
 pub struct ClientConfiguration {
     remote_url: String,
     request_timeout_seconds: u64,
+    max_outstanding_requests: usize,
 }
 
 impl ClientConfiguration {
@@ -89,6 +90,10 @@ impl ClientConfiguration {
 
     pub fn request_timeout_seconds(&self) -> u64 {
         self.request_timeout_seconds
+    }
+
+    pub fn max_outstanding_requests(&self) -> usize {
+        self.max_outstanding_requests
     }
 }
 

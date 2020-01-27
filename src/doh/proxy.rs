@@ -79,8 +79,15 @@ impl DOHProxy {
         };
 
         let response_buffer = match doh_response {
+            crate::doh::client::DOHResponse::TooManyOutstandingRequests(max_requests) => {
+                warn!(
+                    "make_doh_request too many outstanding requests max_requests = {}",
+                    max_requests
+                );
+                return None;
+            }
             crate::doh::client::DOHResponse::HTTPRequestError => {
-                warn!("got http request error");
+                warn!("make_doh_request http request error");
                 return None;
             }
             crate::doh::client::DOHResponse::HTTPRequestSuccess(response_buffer) => response_buffer,
