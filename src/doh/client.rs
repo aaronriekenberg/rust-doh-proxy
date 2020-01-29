@@ -5,17 +5,46 @@ use crate::doh::config::ClientConfiguration;
 use log::{debug, warn};
 
 use std::error::Error;
+use std::fmt;
 use std::time::Duration;
 
 use tokio::sync::Semaphore;
 
 const MAX_CONTENT_LENGTH: u64 = 65_535; // RFC 8484 section 6
 
-pub enum DOHResponse {
-    TooManyOutstandingRequests(usize),
+#[derive(Debug)]
+enum DOHRequestErrorType {
+    TooManyOutstandingRequests,
     HTTPRequestError,
-    HTTPRequestSuccess(Vec<u8>),
+    InvalidContentLength,
 }
+
+#[derive(Debug)]
+struct DOHRequestError {
+    error_type: DOHRequestErrorType,
+}
+
+impl DOHRequestError {
+    fn new(error_type: DOHRequestErrorType) -> Box<Self> {
+        Box::new(DOHRequestError { error_type })
+    }
+}
+
+impl fmt::Display for DOHRequestError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self.error_type {
+                DOHRequestErrorType::TooManyOutstandingRequests => "too many outstanding requests",
+                DOHRequestErrorType::HTTPRequestError => "http request error",
+                DOHRequestErrorType::InvalidContentLength => "content length too long",
+            }
+        )
+    }
+}
+
+impl Error for DOHRequestError {}
 
 pub struct DOHClient {
     client_configuration: ClientConfiguration,
@@ -40,12 +69,12 @@ impl DOHClient {
     pub async fn make_doh_request(
         &self,
         request_buffer: Vec<u8>,
-    ) -> Result<DOHResponse, Box<dyn Error>> {
+    ) -> Result<Vec<u8>, Box<dyn Error>> {
         let _permit = match self.request_semaphore.try_acquire() {
             Ok(permit) => permit,
             Err(_) => {
-                return Ok(DOHResponse::TooManyOutstandingRequests(
-                    self.client_configuration.max_outstanding_requests(),
+                return Err(DOHRequestError::new(
+                    DOHRequestErrorType::TooManyOutstandingRequests,
                 ))
             }
         };
@@ -63,7 +92,7 @@ impl DOHClient {
 
         if response.status() != reqwest::StatusCode::OK {
             warn!("got error response status {}", response.status().as_u16());
-            return Ok(DOHResponse::HTTPRequestError);
+            return Err(DOHRequestError::new(DOHRequestErrorType::HTTPRequestError));
         }
 
         match response.content_length() {
@@ -71,18 +100,22 @@ impl DOHClient {
                 debug!("content_length = {}", content_length);
                 if content_length > MAX_CONTENT_LENGTH {
                     warn!("got too long response content_length = {}", content_length);
-                    return Ok(DOHResponse::HTTPRequestError);
+                    return Err(DOHRequestError::new(
+                        DOHRequestErrorType::InvalidContentLength,
+                    ));
                 }
             }
             None => {
                 warn!("content_length = None");
-                return Ok(DOHResponse::HTTPRequestError);
+                return Err(DOHRequestError::new(
+                    DOHRequestErrorType::InvalidContentLength,
+                ));
             }
         }
 
         let body = response.bytes().await?;
 
         let body_vec = body.bytes().to_vec();
-        Ok(DOHResponse::HTTPRequestSuccess(body_vec))
+        Ok(body_vec)
     }
 }

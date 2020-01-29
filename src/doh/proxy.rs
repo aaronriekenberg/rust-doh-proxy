@@ -70,27 +70,12 @@ impl DOHProxy {
             Ok(buffer) => buffer,
         };
 
-        let doh_response = match self.doh_client.make_doh_request(request_buffer).await {
+        let response_buffer = match self.doh_client.make_doh_request(request_buffer).await {
             Err(e) => {
                 warn!("make_doh_request error {}", e);
                 return None;
             }
-            Ok(doh_response) => doh_response,
-        };
-
-        let response_buffer = match doh_response {
-            crate::doh::client::DOHResponse::TooManyOutstandingRequests(max_requests) => {
-                warn!(
-                    "make_doh_request too many outstanding requests max_requests = {}",
-                    max_requests
-                );
-                return None;
-            }
-            crate::doh::client::DOHResponse::HTTPRequestError => {
-                warn!("make_doh_request http request error");
-                return None;
-            }
-            crate::doh::client::DOHResponse::HTTPRequestSuccess(response_buffer) => response_buffer,
+            Ok(response_buffer) => response_buffer,
         };
 
         debug!("got response_buffer length = {}", response_buffer.len());
