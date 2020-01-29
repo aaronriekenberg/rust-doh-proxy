@@ -38,7 +38,7 @@ impl fmt::Display for DOHRequestError {
             match self.error_type {
                 DOHRequestErrorType::TooManyOutstandingRequests => "too many outstanding requests",
                 DOHRequestErrorType::HTTPRequestError => "http request error",
-                DOHRequestErrorType::InvalidContentLength => "content length too long",
+                DOHRequestErrorType::InvalidContentLength => "invalid content length",
             }
         )
     }
