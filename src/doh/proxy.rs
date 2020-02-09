@@ -276,6 +276,7 @@ impl DOHProxy {
         if let Some(response_message) =
             self.get_message_for_local_domain(&cache_key, request_message.header().id())
         {
+            debug!("local domain request");
             self.metrics.increment_local_requests();
             return response_message;
         }
@@ -284,10 +285,12 @@ impl DOHProxy {
             .get_message_for_cache_hit(&cache_key, request_message.header().id())
             .await
         {
+            debug!("cache hit");
             self.metrics.increment_cache_hits();
             return response_message;
         }
 
+        debug!("cache miss");
         self.metrics.increment_cache_misses();
 
         let response_message = match self.make_doh_request(&request_message).await {
