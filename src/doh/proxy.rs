@@ -73,6 +73,7 @@ impl DOHProxy {
         let response_buffer = match self.doh_client.make_doh_request(request_buffer).await {
             Err(e) => {
                 warn!("make_doh_request error {}", e);
+                self.metrics.increment_doh_request_errors();
                 return None;
             }
             Ok(response_buffer) => response_buffer,

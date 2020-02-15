@@ -10,6 +10,7 @@ pub struct Metrics {
     local_requests: AtomicU64,
     cache_hits: AtomicU64,
     cache_misses: AtomicU64,
+    doh_request_errors: AtomicU64,
 }
 
 impl Metrics {
@@ -20,6 +21,7 @@ impl Metrics {
             local_requests: AtomicU64::new(0),
             cache_hits: AtomicU64::new(0),
             cache_misses: AtomicU64::new(0),
+            doh_request_errors: AtomicU64::new(0),
         })
     }
 
@@ -62,18 +64,27 @@ impl Metrics {
     pub fn increment_cache_misses(&self) {
         self.cache_misses.fetch_add(1, ORDER);
     }
+
+    pub fn doh_request_errors(&self) -> u64 {
+        self.doh_request_errors.load(ORDER)
+    }
+
+    pub fn increment_doh_request_errors(&self) {
+        self.doh_request_errors.fetch_add(1, ORDER);
+    }
 }
 
 impl fmt::Display for Metrics {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "tcp_requests = {} udp_requests = {} local_requests = {} cache_hits = {} cache_misses = {}",
+            "tcp_requests = {} udp_requests = {} local_requests = {} cache_hits = {} cache_misses = {} doh_request_errors = {}",
             self.tcp_requests(),
             self.udp_requests(),
             self.local_requests(),
             self.cache_hits(),
-            self.cache_misses()
+            self.cache_misses(),
+            self.doh_request_errors(),
         )
     }
 }
