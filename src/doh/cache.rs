@@ -107,7 +107,7 @@ impl Cache {
     pub async fn periodic_purge(&self) -> (usize, usize) {
         let mut mut_cache = self.cache.lock().await;
 
-        let mut items_purged: usize = 0;
+        let mut items_purged = 0;
 
         let now = Instant::now();
 
