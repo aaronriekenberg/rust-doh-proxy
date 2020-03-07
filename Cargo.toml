@@ -18,6 +18,7 @@ bytes = "0.5"
 env_logger = "0.7"
 log = "0.4"
 lru = { version = "0.4", default-features = false }
+openssl = { version = "0.10", features = ["vendored"] }
 reqwest = { version = "0.10", features = ["rustls-tls"] }
 serde = "1.0"
 serde_derive = "1.0"
