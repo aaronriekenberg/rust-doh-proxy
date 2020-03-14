@@ -8,9 +8,7 @@ use std::error::Error;
 use std::fmt;
 use std::time::Duration;
 
-use tokio::sync::Semaphore;
-
-const MAX_CONTENT_LENGTH: u64 = 65_535; // RFC 8484 section 6
+use tokio::sync::{Semaphore, SemaphorePermit};
 
 #[derive(Debug)]
 enum DOHRequestErrorType {
@@ -46,6 +44,32 @@ impl fmt::Display for DOHRequestError {
 
 impl Error for DOHRequestError {}
 
+const MAX_CONTENT_LENGTH: u64 = 65_535; // RFC 8484 section 6
+
+fn validate_response_content_length(
+    content_length_option: Option<u64>,
+) -> Result<(), Box<dyn Error>> {
+    match content_length_option {
+        Some(content_length) => {
+            debug!("content_length = {}", content_length);
+            if content_length > MAX_CONTENT_LENGTH {
+                warn!("got too long response content_length = {}", content_length);
+                return Err(DOHRequestError::new(
+                    DOHRequestErrorType::InvalidContentLength,
+                ));
+            }
+        }
+        None => {
+            warn!("content_length = None");
+            return Err(DOHRequestError::new(
+                DOHRequestErrorType::InvalidContentLength,
+            ));
+        }
+    };
+
+    Ok(())
+}
+
 pub struct DOHClient {
     client_configuration: ClientConfiguration,
     client: reqwest::Client,
@@ -66,18 +90,22 @@ impl DOHClient {
         })
     }
 
-    pub async fn make_doh_request(
-        &self,
-        request_buffer: Vec<u8>,
-    ) -> Result<Vec<u8>, Box<dyn Error>> {
-        let _permit = match self.request_semaphore.try_acquire() {
-            Ok(permit) => permit,
+    async fn acquire_semaphore(&self) -> Result<SemaphorePermit<'_>, Box<dyn Error>> {
+        match self.request_semaphore.try_acquire() {
+            Ok(permit) => Ok(permit),
             Err(_) => {
                 return Err(DOHRequestError::new(
                     DOHRequestErrorType::TooManyOutstandingRequests,
                 ))
             }
-        };
+        }
+    }
+
+    pub async fn make_doh_request(
+        &self,
+        request_buffer: Vec<u8>,
+    ) -> Result<Vec<u8>, Box<dyn Error>> {
+        let _permit = self.acquire_semaphore().await?;
 
         let response = self
             .client
@@ -95,23 +123,7 @@ impl DOHClient {
             return Err(DOHRequestError::new(DOHRequestErrorType::HTTPRequestError));
         }
 
-        match response.content_length() {
-            Some(content_length) => {
-                debug!("content_length = {}", content_length);
-                if content_length > MAX_CONTENT_LENGTH {
-                    warn!("got too long response content_length = {}", content_length);
-                    return Err(DOHRequestError::new(
-                        DOHRequestErrorType::InvalidContentLength,
-                    ));
-                }
-            }
-            None => {
-                warn!("content_length = None");
-                return Err(DOHRequestError::new(
-                    DOHRequestErrorType::InvalidContentLength,
-                ));
-            }
-        }
+        validate_response_content_length(response.content_length())?;
 
         let body = response.bytes().await?;
 
