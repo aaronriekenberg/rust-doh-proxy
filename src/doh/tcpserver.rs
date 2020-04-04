@@ -39,6 +39,11 @@ impl TCPServer {
             stream.read_exact(&mut buffer).await?;
             let length = u16::from_be_bytes(buffer);
 
+            if length == 0 {
+                warn!("read 0 length tcp header");
+                break;
+            }
+
             let mut buffer = vec![0u8; usize::from(length)];
             stream.read_exact(&mut buffer).await?;
 
