@@ -1,4 +1,4 @@
-use crate::doh::cache::{get_cache_key, CacheKey};
+use crate::doh::cache::CacheKey;
 use crate::doh::config::{ForwardDomainConfiguration, ReverseDomainConfiguration};
 
 use log::info;
@@ -24,12 +24,12 @@ impl LocalDomainCache {
 
         for forward_domain_configuration in forward_domain_configurations {
             let message = forward_domain_configuration_to_message(forward_domain_configuration)?;
-            cache.insert(get_cache_key(&message), message);
+            cache.insert(CacheKey::from(&message), message);
         }
 
         for reverse_domain_configuration in reverse_domain_configurations {
             let message = reverse_domain_configuration_to_message(reverse_domain_configuration)?;
-            cache.insert(get_cache_key(&message), message);
+            cache.insert(CacheKey::from(&message), message);
         }
 
         info!("created local domain cache len {}", cache.len());

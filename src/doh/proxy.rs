@@ -1,4 +1,4 @@
-use crate::doh::cache::{get_cache_key, Cache, CacheKey, CacheObject};
+use crate::doh::cache::{Cache, CacheKey, CacheObject};
 use crate::doh::client::DOHClient;
 use crate::doh::config::Configuration;
 use crate::doh::localdomain::LocalDomainCache;
@@ -270,7 +270,7 @@ impl DOHProxy {
             return self.build_failure_response_message(&request_message);
         }
 
-        let cache_key = get_cache_key(&request_message);
+        let cache_key = request_message.into();
 
         debug!("cache_key = {:#?}", cache_key);
 

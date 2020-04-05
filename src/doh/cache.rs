@@ -4,6 +4,7 @@ use tokio::sync::Mutex;
 
 use trust_dns_proto::op::Message;
 
+use std::convert::From;
 use std::time::{Duration, Instant};
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -17,23 +18,25 @@ impl CacheKey {
     }
 }
 
-pub fn get_cache_key(message: &Message) -> CacheKey {
-    let mut first = true;
-    let mut key = String::new();
+impl From<&Message> for CacheKey {
+    fn from(message: &Message) -> Self {
+        let mut first = true;
+        let mut key = String::new();
 
-    for query in message.queries() {
-        if !first {
-            key.push('|');
+        for query in message.queries() {
+            if !first {
+                key.push('|');
+            }
+            key.push_str(&query.name().to_string().to_lowercase());
+            key.push(':');
+            key.push_str(&u16::from(query.query_type()).to_string());
+            key.push(':');
+            key.push_str(&u16::from(query.query_class()).to_string());
+            first = false;
         }
-        key.push_str(&query.name().to_string().to_lowercase());
-        key.push(':');
-        key.push_str(&u16::from(query.query_type()).to_string());
-        key.push(':');
-        key.push_str(&u16::from(query.query_class()).to_string());
-        first = false;
-    }
 
-    CacheKey { key }
+        CacheKey { key }
+    }
 }
 
 #[derive(Clone)]
