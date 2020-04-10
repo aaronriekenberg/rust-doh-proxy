@@ -1,6 +1,7 @@
 {
   "server_configuration": {
-    "listen_address": "127.0.0.1:10053"
+    "listen_address": "127.0.0.1:10053",
+    "udp_response_channel_capacity": 1024
   },
   "forward_domain_configurations": [
     {

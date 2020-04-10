@@ -33,7 +33,7 @@ impl UDPServer {
 
     async fn process_udp_packet(
         self: Arc<Self>,
-        response_sender: mpsc::UnboundedSender<UDPResponseMessage>,
+        mut response_sender: mpsc::Sender<UDPResponseMessage>,
         request_buffer: Vec<u8>,
         peer: std::net::SocketAddr,
     ) {
@@ -51,7 +51,10 @@ impl UDPServer {
             Some(response_buffer) => response_buffer,
         };
 
-        match response_sender.send(UDPResponseMessage(response_buffer, peer)) {
+        match response_sender
+            .send(UDPResponseMessage(response_buffer, peer))
+            .await
+        {
             Err(e) => warn!("response_sender.send error {}", e),
             Ok(_) => debug!("response_sender.send success"),
         }
@@ -59,7 +62,7 @@ impl UDPServer {
 
     async fn run_udp_response_sender(
         self: Arc<Self>,
-        mut response_receiver: mpsc::UnboundedReceiver<UDPResponseMessage>,
+        mut response_receiver: mpsc::Receiver<UDPResponseMessage>,
         mut socket_send_half: SendHalf,
     ) {
         info!("begin run_udp_response_sender");
@@ -82,7 +85,9 @@ impl UDPServer {
     pub async fn run(self: Arc<Self>) -> Result<(), Box<dyn Error>> {
         info!("begin run");
 
-        let (response_sender, response_receiver) = mpsc::unbounded_channel::<UDPResponseMessage>();
+        let (response_sender, response_receiver) = mpsc::channel::<UDPResponseMessage>(
+            self.server_configuration.udp_response_channel_capacity(),
+        );
 
         let socket = UdpSocket::bind(self.server_configuration.listen_address()).await?;
 
