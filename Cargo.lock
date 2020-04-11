@@ -735,7 +735,7 @@ dependencies = [
 
 [[package]]
 name = "rust-doh-proxy"
-version = "0.4.3"
+version = "0.4.4"
 dependencies = [
  "bytes 0.5.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
