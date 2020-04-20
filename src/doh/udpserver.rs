@@ -51,9 +51,12 @@ impl UDPServer {
             Some(response_buffer) => response_buffer,
         };
 
-        match response_sender.try_send(UDPResponseMessage(response_buffer, peer)) {
-            Err(e) => warn!("response_sender.try_send error {}", e),
-            Ok(_) => debug!("response_sender.try_send success"),
+        match response_sender
+            .send(UDPResponseMessage(response_buffer, peer))
+            .await
+        {
+            Err(e) => warn!("response_sender.send error {}", e),
+            Ok(_) => debug!("response_sender.send success"),
         }
     }
 
