@@ -99,7 +99,7 @@ impl UDPServer {
             Arc::clone(&self).run_udp_response_sender(response_receiver, socket_send_half),
         );
 
-        let mut receive_buffer = vec![0u8; 2048];
+        let mut receive_buffer = vec![0u8; self.server_configuration.udp_receive_buffer_size()];
         loop {
             let (bytes_received, peer) = match socket_recv_half.recv_from(&mut receive_buffer).await
             {

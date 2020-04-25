@@ -11,6 +11,7 @@ use tokio::io::AsyncReadExt;
 pub struct ServerConfiguration {
     listen_address: String,
     udp_response_channel_capacity: usize,
+    udp_receive_buffer_size: usize,
 }
 
 impl ServerConfiguration {
@@ -20,6 +21,10 @@ impl ServerConfiguration {
 
     pub fn udp_response_channel_capacity(&self) -> usize {
         self.udp_response_channel_capacity
+    }
+
+    pub fn udp_receive_buffer_size(&self) -> usize {
+        self.udp_receive_buffer_size
     }
 }
 
