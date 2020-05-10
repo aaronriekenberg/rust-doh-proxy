@@ -158,10 +158,6 @@ impl DOHProxy {
             return response_message;
         }
 
-        if !cache_key.valid() {
-            return response_message;
-        }
-
         let now = Instant::now();
 
         let mut response_message_clone = response_message.clone();
@@ -267,10 +263,16 @@ impl DOHProxy {
 
         if request_message.queries().is_empty() {
             warn!("request_message.queries is empty");
-            return self.build_failure_response_message(&request_message);
+            return self.build_failure_response_message(request_message);
         }
 
-        let cache_key = request_message.into();
+        let cache_key = match CacheKey::try_from(request_message) {
+            Ok(cache_key) => cache_key,
+            Err(e) => {
+                warn!("cache_key try_from error: {}", e);
+                return self.build_failure_response_message(request_message);
+            }
+        };
 
         debug!("cache_key = {:#?}", cache_key);
 
@@ -294,8 +296,8 @@ impl DOHProxy {
         debug!("cache miss");
         self.metrics.increment_cache_misses();
 
-        let response_message = match self.make_doh_request(&request_message).await {
-            None => return self.build_failure_response_message(&request_message),
+        let response_message = match self.make_doh_request(request_message).await {
+            None => return self.build_failure_response_message(request_message),
             Some(response_message) => response_message,
         };
 

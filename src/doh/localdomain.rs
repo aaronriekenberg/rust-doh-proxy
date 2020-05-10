@@ -4,6 +4,7 @@ use crate::doh::config::{ForwardDomainConfiguration, ReverseDomainConfiguration}
 use log::info;
 
 use std::collections::HashMap;
+use std::convert::TryFrom;
 use std::error::Error;
 use std::str::FromStr;
 
@@ -24,12 +25,16 @@ impl LocalDomainCache {
 
         for forward_domain_configuration in forward_domain_configurations {
             let message = forward_domain_configuration_to_message(forward_domain_configuration)?;
-            cache.insert(CacheKey::from(&message), message);
+            let cache_key = CacheKey::try_from(&message)
+                .map_err(|e| format!("invalid forward domain cache_key: {}", e))?;
+            cache.insert(cache_key, message);
         }
 
         for reverse_domain_configuration in reverse_domain_configurations {
             let message = reverse_domain_configuration_to_message(reverse_domain_configuration)?;
-            cache.insert(CacheKey::from(&message), message);
+            let cache_key = CacheKey::try_from(&message)
+                .map_err(|e| format!("invalid reverse domain cache_key: {}", e))?;
+            cache.insert(cache_key, message);
         }
 
         info!("created local domain cache len {}", cache.len());

@@ -4,7 +4,7 @@ use tokio::sync::Mutex;
 
 use trust_dns_proto::op::Message;
 
-use std::convert::From;
+use std::convert::TryFrom;
 use std::time::{Duration, Instant};
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -12,14 +12,10 @@ pub struct CacheKey {
     key: String,
 }
 
-impl CacheKey {
-    pub fn valid(&self) -> bool {
-        !self.key.is_empty()
-    }
-}
+impl TryFrom<&Message> for CacheKey {
+    type Error = &'static str;
 
-impl From<&Message> for CacheKey {
-    fn from(message: &Message) -> Self {
+    fn try_from(message: &Message) -> Result<Self, Self::Error> {
         let mut first = true;
         let mut key = String::new();
 
@@ -35,7 +31,11 @@ impl From<&Message> for CacheKey {
             first = false;
         }
 
-        CacheKey { key }
+        if key.is_empty() {
+            Err("key string is empty")
+        } else {
+            Ok(CacheKey { key })
+        }
     }
 }
 
@@ -98,10 +98,6 @@ impl Cache {
     }
 
     pub async fn put(&self, key: CacheKey, cache_object: CacheObject) {
-        if !key.valid() {
-            return;
-        }
-
         let mut mut_cache = self.cache.lock().await;
 
         mut_cache.put(key, cache_object);
