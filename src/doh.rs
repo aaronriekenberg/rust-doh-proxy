@@ -4,6 +4,7 @@ pub mod config;
 mod localdomain;
 mod metrics;
 pub mod proxy;
+mod request_key;
 mod tcpserver;
 mod udpserver;
 mod utils;

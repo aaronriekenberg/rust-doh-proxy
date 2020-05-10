@@ -1,5 +1,5 @@
-use crate::doh::cache::CacheKey;
 use crate::doh::config::{ForwardDomainConfiguration, ReverseDomainConfiguration};
+use crate::doh::request_key::RequestKey;
 
 use log::info;
 
@@ -13,7 +13,7 @@ use trust_dns_proto::rr::resource::Record;
 use trust_dns_proto::rr::{Name, RData, RecordType};
 
 pub struct LocalDomainCache {
-    cache: HashMap<CacheKey, Message>,
+    cache: HashMap<RequestKey, Message>,
 }
 
 impl LocalDomainCache {
@@ -25,16 +25,16 @@ impl LocalDomainCache {
 
         for forward_domain_configuration in forward_domain_configurations {
             let message = forward_domain_configuration_to_message(forward_domain_configuration)?;
-            let cache_key = CacheKey::try_from(&message)
-                .map_err(|e| format!("invalid forward domain cache_key: {}", e))?;
-            cache.insert(cache_key, message);
+            let request_key = RequestKey::try_from(&message)
+                .map_err(|e| format!("invalid forward domain request_key: {}", e))?;
+            cache.insert(request_key, message);
         }
 
         for reverse_domain_configuration in reverse_domain_configurations {
             let message = reverse_domain_configuration_to_message(reverse_domain_configuration)?;
-            let cache_key = CacheKey::try_from(&message)
-                .map_err(|e| format!("invalid reverse domain cache_key: {}", e))?;
-            cache.insert(cache_key, message);
+            let request_key = RequestKey::try_from(&message)
+                .map_err(|e| format!("invalid reverse domain request_key: {}", e))?;
+            cache.insert(request_key, message);
         }
 
         info!("created local domain cache len {}", cache.len());
@@ -42,8 +42,8 @@ impl LocalDomainCache {
         Ok(LocalDomainCache { cache })
     }
 
-    pub fn get_response_message(&self, cache_key: &CacheKey) -> Option<Message> {
-        match self.cache.get(cache_key) {
+    pub fn get_response_message(&self, request_key: &RequestKey) -> Option<Message> {
+        match self.cache.get(request_key) {
             None => None,
             Some(message) => Some(message.clone()),
         }

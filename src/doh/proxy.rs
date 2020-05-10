@@ -1,8 +1,9 @@
-use crate::doh::cache::{Cache, CacheKey, CacheObject};
+use crate::doh::cache::{Cache, CacheObject};
 use crate::doh::client::DOHClient;
 use crate::doh::config::Configuration;
 use crate::doh::localdomain::LocalDomainCache;
 use crate::doh::metrics::Metrics;
+use crate::doh::request_key::RequestKey;
 use crate::doh::utils;
 
 use log::{debug, info, warn};
@@ -142,7 +143,7 @@ impl DOHProxy {
 
     async fn clamp_ttl_and_cache_response(
         &self,
-        cache_key: CacheKey,
+        request_key: RequestKey,
         response_message: Message,
     ) -> Message {
         if !((response_message.response_code() == trust_dns_proto::op::ResponseCode::NoError)
@@ -164,7 +165,7 @@ impl DOHProxy {
         response_message_clone.set_id(0);
         self.cache
             .put(
-                cache_key,
+                request_key,
                 CacheObject::new(response_message_clone, now, min_ttl_duration),
             )
             .await;
@@ -174,10 +175,11 @@ impl DOHProxy {
 
     fn get_message_for_local_domain(
         &self,
-        cache_key: &CacheKey,
+        request_key: &RequestKey,
         request_id: u16,
     ) -> Option<Message> {
-        let mut response_message = match self.local_domain_cache.get_response_message(&cache_key) {
+        let mut response_message = match self.local_domain_cache.get_response_message(&request_key)
+        {
             None => return None,
             Some(message) => message,
         };
@@ -189,10 +191,10 @@ impl DOHProxy {
 
     async fn get_message_for_cache_hit(
         &self,
-        cache_key: &CacheKey,
+        request_key: &RequestKey,
         request_id: u16,
     ) -> Option<Message> {
-        let cache_object = match self.cache.get(&cache_key).await {
+        let cache_object = match self.cache.get(&request_key).await {
             None => return None,
             Some(cache_object) => cache_object,
         };
@@ -261,23 +263,18 @@ impl DOHProxy {
             request_message
         );
 
-        if request_message.queries().is_empty() {
-            warn!("request_message.queries is empty");
-            return self.build_failure_response_message(request_message);
-        }
-
-        let cache_key = match CacheKey::try_from(request_message) {
-            Ok(cache_key) => cache_key,
+        let request_key = match RequestKey::try_from(request_message) {
+            Ok(request_key) => request_key,
             Err(e) => {
-                warn!("cache_key try_from error: {}", e);
+                warn!("request_key try_from error: {}", e);
                 return self.build_failure_response_message(request_message);
             }
         };
 
-        debug!("cache_key = {:#?}", cache_key);
+        debug!("request_key = {:#?}", request_key);
 
         if let Some(response_message) =
-            self.get_message_for_local_domain(&cache_key, request_message.header().id())
+            self.get_message_for_local_domain(&request_key, request_message.header().id())
         {
             debug!("local domain request");
             self.metrics.increment_local_requests();
@@ -285,7 +282,7 @@ impl DOHProxy {
         }
 
         if let Some(response_message) = self
-            .get_message_for_cache_hit(&cache_key, request_message.header().id())
+            .get_message_for_cache_hit(&request_key, request_message.header().id())
             .await
         {
             debug!("cache hit");
@@ -302,7 +299,7 @@ impl DOHProxy {
         };
 
         let mut response_message = self
-            .clamp_ttl_and_cache_response(cache_key, response_message)
+            .clamp_ttl_and_cache_response(request_key, response_message)
             .await;
         response_message.set_id(request_message.header().id());
 

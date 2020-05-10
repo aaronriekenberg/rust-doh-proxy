@@ -1,43 +1,11 @@
 use crate::doh::config::CacheConfiguration;
+use crate::doh::request_key::RequestKey;
 
 use tokio::sync::Mutex;
 
 use trust_dns_proto::op::Message;
 
-use std::convert::TryFrom;
 use std::time::{Duration, Instant};
-
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub struct CacheKey {
-    key: String,
-}
-
-impl TryFrom<&Message> for CacheKey {
-    type Error = &'static str;
-
-    fn try_from(message: &Message) -> Result<Self, Self::Error> {
-        let mut first = true;
-        let mut key = String::new();
-
-        for query in message.queries() {
-            if !first {
-                key.push('|');
-            }
-            key.push_str(&query.name().to_string().to_lowercase());
-            key.push(':');
-            key.push_str(&u16::from(query.query_type()).to_string());
-            key.push(':');
-            key.push_str(&u16::from(query.query_class()).to_string());
-            first = false;
-        }
-
-        if key.is_empty() {
-            Err("key string is empty")
-        } else {
-            Ok(CacheKey { key })
-        }
-    }
-}
 
 #[derive(Clone)]
 pub struct CacheObject {
@@ -75,7 +43,7 @@ impl CacheObject {
 
 pub struct Cache {
     cache_configuration: CacheConfiguration,
-    cache: Mutex<lru::LruCache<CacheKey, CacheObject>>,
+    cache: Mutex<lru::LruCache<RequestKey, CacheObject>>,
 }
 
 impl Cache {
@@ -88,7 +56,7 @@ impl Cache {
         }
     }
 
-    pub async fn get(&self, key: &CacheKey) -> Option<CacheObject> {
+    pub async fn get(&self, key: &RequestKey) -> Option<CacheObject> {
         let mut mut_cache = self.cache.lock().await;
 
         match mut_cache.get(key) {
@@ -97,7 +65,7 @@ impl Cache {
         }
     }
 
-    pub async fn put(&self, key: CacheKey, cache_object: CacheObject) {
+    pub async fn put(&self, key: RequestKey, cache_object: CacheObject) {
         let mut mut_cache = self.cache.lock().await;
 
         mut_cache.put(key, cache_object);
