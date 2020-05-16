@@ -9,8 +9,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
     env_logger::builder().format_timestamp(None).init();
 
     info!(
-        "Build SEMVER: {} Timestamp: {} SHA: {}",
+        "Build SEMVER: {} Target: {} Timestamp: {} SHA: {}",
         env!("VERGEN_SEMVER_LIGHTWEIGHT"),
+        env!("VERGEN_TARGET_TRIPLE"),
         env!("VERGEN_BUILD_TIMESTAMP"),
         env!("VERGEN_SHA")
     );
