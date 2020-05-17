@@ -1,16 +1,17 @@
 use std::fmt;
-use std::sync::atomic::AtomicU64;
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 
 pub struct AtomicU64Metric {
     value: AtomicU64,
+    name: String,
 }
 
 impl AtomicU64Metric {
-    fn new() -> Self {
+    fn new(name: &str) -> Self {
         AtomicU64Metric {
             value: AtomicU64::new(0),
+            name: name.to_owned(),
         }
     }
 
@@ -20,6 +21,16 @@ impl AtomicU64Metric {
 
     pub fn value(&self) -> u64 {
         self.value.load(Ordering::Relaxed)
+    }
+
+    pub fn name(&self) -> &String {
+        &self.name
+    }
+}
+
+impl fmt::Display for AtomicU64Metric {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} = {}", self.name(), self.value())
     }
 }
 
@@ -35,12 +46,12 @@ pub struct Metrics {
 impl Metrics {
     pub fn new() -> Arc<Self> {
         Arc::new(Metrics {
-            tcp_requests: AtomicU64Metric::new(),
-            udp_requests: AtomicU64Metric::new(),
-            local_requests: AtomicU64Metric::new(),
-            cache_hits: AtomicU64Metric::new(),
-            cache_misses: AtomicU64Metric::new(),
-            doh_request_errors: AtomicU64Metric::new(),
+            tcp_requests: AtomicU64Metric::new("tcp_requests"),
+            udp_requests: AtomicU64Metric::new("udp_requests"),
+            local_requests: AtomicU64Metric::new("local_requests"),
+            cache_hits: AtomicU64Metric::new("cache_hits"),
+            cache_misses: AtomicU64Metric::new("cache_misses"),
+            doh_request_errors: AtomicU64Metric::new("doh_request_errors"),
         })
     }
 
@@ -67,19 +78,31 @@ impl Metrics {
     pub fn doh_request_errors(&self) -> &AtomicU64Metric {
         &self.doh_request_errors
     }
+
+    fn all_metrics(&self) -> Vec<&AtomicU64Metric> {
+        vec![
+            &self.tcp_requests,
+            &self.udp_requests,
+            &self.local_requests,
+            &self.cache_hits,
+            &self.cache_misses,
+            &self.doh_request_errors,
+        ]
+    }
 }
 
 impl fmt::Display for Metrics {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "tcp_requests = {} udp_requests = {} local_requests = {} cache_hits = {} cache_misses = {} doh_request_errors = {}",
-            self.tcp_requests().value(),
-            self.udp_requests().value(),
-            self.local_requests().value(),
-            self.cache_hits().value(),
-            self.cache_misses().value(),
-            self.doh_request_errors().value(),
-        )
+        let all_metrics = self.all_metrics();
+        let mut first = true;
+
+        for metric in all_metrics {
+            if !first {
+                write!(f, " ")?;
+            }
+            metric.fmt(f)?;
+            first = false;
+        }
+        Ok(())
     }
 }
