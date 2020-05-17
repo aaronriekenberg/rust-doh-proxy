@@ -37,7 +37,7 @@ impl UDPServer {
         request_buffer: Vec<u8>,
         peer: std::net::SocketAddr,
     ) {
-        self.metrics.increment_udp_requests();
+        self.metrics.udp_requests().increment_value();
 
         let response_buffer = match self
             .doh_proxy

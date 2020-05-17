@@ -74,7 +74,7 @@ impl DOHProxy {
         let response_buffer = match self.doh_client.make_doh_request(request_buffer).await {
             Err(e) => {
                 warn!("make_doh_request error {}", e);
-                self.metrics.increment_doh_request_errors();
+                self.metrics.doh_request_errors().increment_value();
                 return None;
             }
             Ok(response_buffer) => response_buffer,
@@ -277,7 +277,7 @@ impl DOHProxy {
             self.get_message_for_local_domain(&request_key, request_message.header().id())
         {
             debug!("local domain request");
-            self.metrics.increment_local_requests();
+            self.metrics.local_requests().increment_value();
             return response_message;
         }
 
@@ -286,12 +286,12 @@ impl DOHProxy {
             .await
         {
             debug!("cache hit");
-            self.metrics.increment_cache_hits();
+            self.metrics.cache_hits().increment_value();
             return response_message;
         }
 
         debug!("cache miss");
-        self.metrics.increment_cache_misses();
+        self.metrics.cache_misses().increment_value();
 
         let response_message = match self.make_doh_request(request_message).await {
             None => return self.build_failure_response_message(request_message),

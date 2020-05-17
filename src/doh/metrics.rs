@@ -1,76 +1,71 @@
 use std::fmt;
 use std::sync::atomic::AtomicU64;
+use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
-const ORDER: std::sync::atomic::Ordering = std::sync::atomic::Ordering::Relaxed;
+pub struct AtomicU64Metric {
+    value: AtomicU64,
+}
+
+impl AtomicU64Metric {
+    fn new() -> Self {
+        AtomicU64Metric {
+            value: AtomicU64::new(0),
+        }
+    }
+
+    pub fn increment_value(&self) {
+        self.value.fetch_add(1, Ordering::Relaxed);
+    }
+
+    pub fn value(&self) -> u64 {
+        self.value.load(Ordering::Relaxed)
+    }
+}
 
 pub struct Metrics {
-    tcp_requests: AtomicU64,
-    udp_requests: AtomicU64,
-    local_requests: AtomicU64,
-    cache_hits: AtomicU64,
-    cache_misses: AtomicU64,
-    doh_request_errors: AtomicU64,
+    tcp_requests: AtomicU64Metric,
+    udp_requests: AtomicU64Metric,
+    local_requests: AtomicU64Metric,
+    cache_hits: AtomicU64Metric,
+    cache_misses: AtomicU64Metric,
+    doh_request_errors: AtomicU64Metric,
 }
 
 impl Metrics {
     pub fn new() -> Arc<Self> {
         Arc::new(Metrics {
-            tcp_requests: AtomicU64::new(0),
-            udp_requests: AtomicU64::new(0),
-            local_requests: AtomicU64::new(0),
-            cache_hits: AtomicU64::new(0),
-            cache_misses: AtomicU64::new(0),
-            doh_request_errors: AtomicU64::new(0),
+            tcp_requests: AtomicU64Metric::new(),
+            udp_requests: AtomicU64Metric::new(),
+            local_requests: AtomicU64Metric::new(),
+            cache_hits: AtomicU64Metric::new(),
+            cache_misses: AtomicU64Metric::new(),
+            doh_request_errors: AtomicU64Metric::new(),
         })
     }
 
-    pub fn tcp_requests(&self) -> u64 {
-        self.tcp_requests.load(ORDER)
+    pub fn tcp_requests(&self) -> &AtomicU64Metric {
+        &self.tcp_requests
     }
 
-    pub fn increment_tcp_requests(&self) {
-        self.tcp_requests.fetch_add(1, ORDER);
+    pub fn udp_requests(&self) -> &AtomicU64Metric {
+        &self.udp_requests
     }
 
-    pub fn local_requests(&self) -> u64 {
-        self.local_requests.load(ORDER)
+    pub fn local_requests(&self) -> &AtomicU64Metric {
+        &self.local_requests
     }
 
-    pub fn increment_local_requests(&self) {
-        self.local_requests.fetch_add(1, ORDER);
+    pub fn cache_hits(&self) -> &AtomicU64Metric {
+        &self.cache_hits
     }
 
-    pub fn udp_requests(&self) -> u64 {
-        self.udp_requests.load(ORDER)
+    pub fn cache_misses(&self) -> &AtomicU64Metric {
+        &self.cache_misses
     }
 
-    pub fn increment_udp_requests(&self) {
-        self.udp_requests.fetch_add(1, ORDER);
-    }
-
-    pub fn cache_hits(&self) -> u64 {
-        self.cache_hits.load(ORDER)
-    }
-
-    pub fn increment_cache_hits(&self) {
-        self.cache_hits.fetch_add(1, ORDER);
-    }
-
-    pub fn cache_misses(&self) -> u64 {
-        self.cache_misses.load(ORDER)
-    }
-
-    pub fn increment_cache_misses(&self) {
-        self.cache_misses.fetch_add(1, ORDER);
-    }
-
-    pub fn doh_request_errors(&self) -> u64 {
-        self.doh_request_errors.load(ORDER)
-    }
-
-    pub fn increment_doh_request_errors(&self) {
-        self.doh_request_errors.fetch_add(1, ORDER);
+    pub fn doh_request_errors(&self) -> &AtomicU64Metric {
+        &self.doh_request_errors
     }
 }
 
@@ -79,12 +74,12 @@ impl fmt::Display for Metrics {
         write!(
             f,
             "tcp_requests = {} udp_requests = {} local_requests = {} cache_hits = {} cache_misses = {} doh_request_errors = {}",
-            self.tcp_requests(),
-            self.udp_requests(),
-            self.local_requests(),
-            self.cache_hits(),
-            self.cache_misses(),
-            self.doh_request_errors(),
+            self.tcp_requests().value(),
+            self.udp_requests().value(),
+            self.local_requests().value(),
+            self.cache_hits().value(),
+            self.cache_misses().value(),
+            self.doh_request_errors().value(),
         )
     }
 }

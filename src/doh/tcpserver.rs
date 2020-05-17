@@ -47,7 +47,7 @@ impl TCPServer {
             let mut buffer = vec![0u8; usize::from(length)];
             stream.read_exact(&mut buffer).await?;
 
-            self.metrics.increment_tcp_requests();
+            self.metrics.tcp_requests().increment_value();
 
             let buffer = match self.doh_proxy.process_request_packet_buffer(buffer).await {
                 Some(buffer) => buffer,
