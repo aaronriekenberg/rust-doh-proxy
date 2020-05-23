@@ -1,9 +1,7 @@
-use log::info;
-
-use serde_derive::Deserialize;
-
 use std::error::Error;
 
+use log::info;
+use serde_derive::Deserialize;
 use tokio::fs::File;
 use tokio::io::AsyncReadExt;
 

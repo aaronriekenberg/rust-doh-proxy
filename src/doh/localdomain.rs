@@ -1,16 +1,15 @@
-use crate::doh::config::{ForwardDomainConfiguration, ReverseDomainConfiguration};
-use crate::doh::request_key::RequestKey;
-
-use log::info;
-
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::error::Error;
 use std::str::FromStr;
 
+use log::info;
 use trust_dns_proto::op::{Message, MessageType, Query, ResponseCode};
-use trust_dns_proto::rr::resource::Record;
 use trust_dns_proto::rr::{Name, RData, RecordType};
+use trust_dns_proto::rr::resource::Record;
+
+use crate::doh::config::{ForwardDomainConfiguration, ReverseDomainConfiguration};
+use crate::doh::request_key::RequestKey;
 
 pub struct LocalDomainCache {
     cache: HashMap<RequestKey, Message>,

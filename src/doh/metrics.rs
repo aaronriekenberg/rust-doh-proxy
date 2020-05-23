@@ -1,6 +1,6 @@
 use std::fmt;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 pub struct AtomicU64Metric {
     value: AtomicU64,

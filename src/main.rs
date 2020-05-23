@@ -1,8 +1,8 @@
-mod doh;
+use std::error::Error;
 
 use log::info;
 
-use std::error::Error;
+mod doh;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {

@@ -1,5 +1,4 @@
 use log::{debug, warn};
-
 use trust_dns_proto::error::ProtoResult;
 use trust_dns_proto::op::Message;
 use trust_dns_proto::serialize::binary::{BinDecodable, BinDecoder, BinEncodable, BinEncoder};

@@ -1,3 +1,12 @@
+use std::convert::TryFrom;
+use std::error::Error;
+use std::sync::Arc;
+use std::time::{Duration, Instant};
+
+use log::{debug, info, warn};
+use trust_dns_proto::op::Message;
+use trust_dns_proto::rr::resource::Record;
+
 use crate::doh::cache::{Cache, CacheObject};
 use crate::doh::client::DOHClient;
 use crate::doh::config::Configuration;
@@ -5,16 +14,6 @@ use crate::doh::localdomain::LocalDomainCache;
 use crate::doh::metrics::Metrics;
 use crate::doh::request_key::RequestKey;
 use crate::doh::utils;
-
-use log::{debug, info, warn};
-
-use std::convert::TryFrom;
-use std::error::Error;
-use std::sync::Arc;
-use std::time::{Duration, Instant};
-
-use trust_dns_proto::op::Message;
-use trust_dns_proto::rr::resource::Record;
 
 pub struct DOHProxy {
     configuration: Configuration,
@@ -274,7 +273,7 @@ impl DOHProxy {
         debug!("request_key = {:#?}", request_key);
 
         if let Some(response_message) =
-            self.get_message_for_local_domain(&request_key, request_message.header().id())
+        self.get_message_for_local_domain(&request_key, request_message.header().id())
         {
             debug!("local domain request");
             self.metrics.local_requests().increment_value();

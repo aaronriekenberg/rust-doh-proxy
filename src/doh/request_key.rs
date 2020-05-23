@@ -1,8 +1,8 @@
+use std::convert::TryFrom;
+
 use trust_dns_proto::op::Message;
 use trust_dns_proto::rr::dns_class::DNSClass;
 use trust_dns_proto::rr::record_type::RecordType;
-
-use std::convert::TryFrom;
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 struct RequestQueryKey {

@@ -1,11 +1,10 @@
-use crate::doh::config::CacheConfiguration;
-use crate::doh::request_key::RequestKey;
+use std::time::{Duration, Instant};
 
 use tokio::sync::Mutex;
-
 use trust_dns_proto::op::Message;
 
-use std::time::{Duration, Instant};
+use crate::doh::config::CacheConfiguration;
+use crate::doh::request_key::RequestKey;
 
 #[derive(Clone)]
 pub struct CacheObject {

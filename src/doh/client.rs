@@ -1,14 +1,12 @@
-use bytes::Buf;
-
-use crate::doh::config::ClientConfiguration;
-
-use log::{debug, warn};
-
 use std::error::Error;
 use std::fmt;
 use std::time::Duration;
 
+use bytes::Buf;
+use log::{debug, warn};
 use tokio::sync::{Semaphore, SemaphorePermit};
+
+use crate::doh::config::ClientConfiguration;
 
 #[derive(Debug)]
 enum DOHRequestErrorType {
@@ -96,7 +94,7 @@ impl DOHClient {
             Err(_) => {
                 return Err(DOHRequestError::new(
                     DOHRequestErrorType::TooManyOutstandingRequests,
-                ))
+                ));
             }
         }
     }

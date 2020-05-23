@@ -1,15 +1,14 @@
-use crate::doh::config::ServerConfiguration;
-use crate::doh::metrics::Metrics;
-use crate::doh::proxy::DOHProxy;
-
-use log::{debug, info, warn};
-
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::{TcpListener, TcpStream};
-
 use std::convert::TryFrom;
 use std::error::Error;
 use std::sync::Arc;
+
+use log::{debug, info, warn};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::{TcpListener, TcpStream};
+
+use crate::doh::config::ServerConfiguration;
+use crate::doh::metrics::Metrics;
+use crate::doh::proxy::DOHProxy;
 
 pub struct TCPServer {
     server_configuration: ServerConfiguration,

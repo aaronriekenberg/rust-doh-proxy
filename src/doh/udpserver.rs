@@ -1,14 +1,13 @@
-use crate::doh::config::ServerConfiguration;
-use crate::doh::metrics::Metrics;
-use crate::doh::proxy::DOHProxy;
-
-use log::{debug, info, warn};
-
 use std::error::Error;
 use std::sync::Arc;
 
+use log::{debug, info, warn};
 use tokio::net::{udp::SendHalf, UdpSocket};
 use tokio::sync::mpsc;
+
+use crate::doh::config::ServerConfiguration;
+use crate::doh::metrics::Metrics;
+use crate::doh::proxy::DOHProxy;
 
 struct UDPResponseMessage(Vec<u8>, std::net::SocketAddr);
 
