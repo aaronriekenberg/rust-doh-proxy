@@ -1,6 +1,6 @@
 [package]
 name = "rust-doh-proxy"
-version = "0.4.9"
+version = "0.5.0"
 authors = ["Aaron Riekenberg <aaron.riekenberg@gmail.com>"]
 edition = "2018"
 build = "build.rs"
