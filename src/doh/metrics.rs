@@ -97,12 +97,10 @@ impl Metrics {
     }
 
     pub fn all_metrics_string(&self) -> String {
-        self.all_metrics().iter().fold(String::new(), |acc, &arg| {
-            if !acc.is_empty() {
-                acc + " " + &arg.to_string()
-            } else {
-                acc + &arg.to_string()
-            }
-        })
+        self.all_metrics()
+            .iter()
+            .map(|&metric| metric.to_string())
+            .collect::<Vec<String>>()
+            .join(" ")
     }
 }
