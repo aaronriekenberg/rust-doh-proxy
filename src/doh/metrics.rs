@@ -1,8 +1,6 @@
-use std::fmt::Display;
+use std::fmt::{Display, Formatter};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
-
-use serde::export::Formatter;
 
 pub trait Metric: Display {
     fn name(&self) -> &str;
@@ -36,13 +34,11 @@ impl Metric for CounterMetric {
     }
 }
 
-
 impl Display for CounterMetric {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{} = {}", self.name(), self.value())
     }
 }
-
 
 pub struct Metrics {
     tcp_requests: CounterMetric,
