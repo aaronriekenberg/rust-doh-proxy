@@ -1,15 +1,21 @@
-use std::fmt;
+use std::fmt::Display;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-pub struct AtomicU64Metric {
+use serde::export::Formatter;
+
+pub trait Metric: Display {
+    fn name(&self) -> &str;
+}
+
+pub struct CounterMetric {
     value: AtomicU64,
     name: String,
 }
 
-impl AtomicU64Metric {
+impl CounterMetric {
     fn new(name: &str) -> Self {
-        AtomicU64Metric {
+        CounterMetric {
             value: AtomicU64::new(0),
             name: name.to_owned(),
         }
@@ -22,87 +28,85 @@ impl AtomicU64Metric {
     pub fn value(&self) -> u64 {
         self.value.load(Ordering::Relaxed)
     }
+}
 
-    pub fn name(&self) -> &String {
+impl Metric for CounterMetric {
+    fn name(&self) -> &str {
         &self.name
     }
 }
 
-impl fmt::Display for AtomicU64Metric {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+
+impl Display for CounterMetric {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{} = {}", self.name(), self.value())
     }
 }
 
+
 pub struct Metrics {
-    tcp_requests: AtomicU64Metric,
-    udp_requests: AtomicU64Metric,
-    local_requests: AtomicU64Metric,
-    cache_hits: AtomicU64Metric,
-    cache_misses: AtomicU64Metric,
-    doh_request_errors: AtomicU64Metric,
+    tcp_requests: CounterMetric,
+    udp_requests: CounterMetric,
+    local_requests: CounterMetric,
+    cache_hits: CounterMetric,
+    cache_misses: CounterMetric,
+    doh_request_errors: CounterMetric,
 }
 
 impl Metrics {
     pub fn new() -> Arc<Self> {
         Arc::new(Metrics {
-            tcp_requests: AtomicU64Metric::new("tcp_requests"),
-            udp_requests: AtomicU64Metric::new("udp_requests"),
-            local_requests: AtomicU64Metric::new("local_requests"),
-            cache_hits: AtomicU64Metric::new("cache_hits"),
-            cache_misses: AtomicU64Metric::new("cache_misses"),
-            doh_request_errors: AtomicU64Metric::new("doh_request_errors"),
+            tcp_requests: CounterMetric::new("tcp_requests"),
+            udp_requests: CounterMetric::new("udp_requests"),
+            local_requests: CounterMetric::new("local_requests"),
+            cache_hits: CounterMetric::new("cache_hits"),
+            cache_misses: CounterMetric::new("cache_misses"),
+            doh_request_errors: CounterMetric::new("doh_request_errors"),
         })
     }
 
-    pub fn tcp_requests(&self) -> &AtomicU64Metric {
+    pub fn tcp_requests(&self) -> &CounterMetric {
         &self.tcp_requests
     }
 
-    pub fn udp_requests(&self) -> &AtomicU64Metric {
+    pub fn udp_requests(&self) -> &CounterMetric {
         &self.udp_requests
     }
 
-    pub fn local_requests(&self) -> &AtomicU64Metric {
+    pub fn local_requests(&self) -> &CounterMetric {
         &self.local_requests
     }
 
-    pub fn cache_hits(&self) -> &AtomicU64Metric {
+    pub fn cache_hits(&self) -> &CounterMetric {
         &self.cache_hits
     }
 
-    pub fn cache_misses(&self) -> &AtomicU64Metric {
+    pub fn cache_misses(&self) -> &CounterMetric {
         &self.cache_misses
     }
 
-    pub fn doh_request_errors(&self) -> &AtomicU64Metric {
+    pub fn doh_request_errors(&self) -> &CounterMetric {
         &self.doh_request_errors
     }
 
-    fn all_metrics(&self) -> Vec<&AtomicU64Metric> {
+    pub fn all_metrics(&self) -> Vec<&dyn Metric> {
         vec![
             &self.tcp_requests,
             &self.udp_requests,
             &self.local_requests,
             &self.cache_hits,
             &self.cache_misses,
-            &self.doh_request_errors,
+            &self.doh_request_errors
         ]
     }
-}
 
-impl fmt::Display for Metrics {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let all_metrics = self.all_metrics();
-        let mut first = true;
-
-        for metric in all_metrics {
-            if !first {
-                write!(f, " ")?;
+    pub fn all_metrics_string(&self) -> String {
+        self.all_metrics().iter().fold(String::new(), |acc, &arg| {
+            if !acc.is_empty() {
+                acc + " " + &arg.to_string()
+            } else {
+                acc + &arg.to_string()
             }
-            metric.fmt(f)?;
-            first = false;
-        }
-        Ok(())
+        })
     }
 }
