@@ -36,7 +36,7 @@ impl Metric for CounterMetric {
 
 impl Display for CounterMetric {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} = {}", self.name(), self.value())
+        write!(f, "{}={}", self.name(), self.value())
     }
 }
 
