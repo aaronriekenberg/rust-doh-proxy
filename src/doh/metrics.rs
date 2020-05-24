@@ -84,16 +84,10 @@ impl Metrics {
         &self.counter_metrics[counter_metric_type as usize]
     }
 
-    pub fn all_metrics(&self) -> Vec<&dyn Metric> {
-        CounterMetricType::into_enum_iter()
-            .map(|counter_metric_type| self.counter_metric(counter_metric_type) as &dyn Metric)
-            .collect()
-    }
-
     pub fn all_metrics_string(&self) -> String {
-        self.all_metrics()
+        self.counter_metrics
             .iter()
-            .map(|&metric| metric.to_string())
+            .map(|metric| metric.to_string())
             .collect::<Vec<String>>()
             .join(" ")
     }
