@@ -2,20 +2,45 @@ use std::fmt::{Display, Formatter};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
+use enum_iterator::IntoEnumIterator;
+
 pub trait Metric: Display {
     fn name(&self) -> &str;
 }
 
+#[derive(Clone, Copy, Eq, Hash, PartialEq, IntoEnumIterator)]
+pub enum CounterMetricType {
+    TCPRequests,
+    UDPRequests,
+    LocalRequests,
+    CacheHits,
+    CacheMisses,
+    DOHRequestErrors,
+}
+
+impl CounterMetricType {
+    fn name(&self) -> &'static str {
+        match self {
+            CounterMetricType::TCPRequests => "tcp_requests",
+            CounterMetricType::UDPRequests => "udp_requests",
+            CounterMetricType::LocalRequests => "local_requests",
+            CounterMetricType::CacheHits => "cache_hits",
+            CounterMetricType::CacheMisses => "cache_misses",
+            CounterMetricType::DOHRequestErrors => "doh_request_errors",
+        }
+    }
+}
+
 pub struct CounterMetric {
     value: AtomicU64,
-    name: String,
+    counter_metric_type: CounterMetricType,
 }
 
 impl CounterMetric {
-    fn new(name: &str) -> Self {
+    fn new(counter_metric_type: CounterMetricType) -> Self {
         CounterMetric {
             value: AtomicU64::new(0),
-            name: name.to_owned(),
+            counter_metric_type,
         }
     }
 
@@ -30,7 +55,7 @@ impl CounterMetric {
 
 impl Metric for CounterMetric {
     fn name(&self) -> &str {
-        &self.name
+        self.counter_metric_type.name()
     }
 }
 
@@ -41,59 +66,28 @@ impl Display for CounterMetric {
 }
 
 pub struct Metrics {
-    tcp_requests: CounterMetric,
-    udp_requests: CounterMetric,
-    local_requests: CounterMetric,
-    cache_hits: CounterMetric,
-    cache_misses: CounterMetric,
-    doh_request_errors: CounterMetric,
+    counter_metrics: Vec<CounterMetric>,
 }
 
 impl Metrics {
     pub fn new() -> Arc<Self> {
-        Arc::new(Metrics {
-            tcp_requests: CounterMetric::new("tcp_requests"),
-            udp_requests: CounterMetric::new("udp_requests"),
-            local_requests: CounterMetric::new("local_requests"),
-            cache_hits: CounterMetric::new("cache_hits"),
-            cache_misses: CounterMetric::new("cache_misses"),
-            doh_request_errors: CounterMetric::new("doh_request_errors"),
-        })
+        let mut counter_metrics = Vec::with_capacity(CounterMetricType::VARIANT_COUNT);
+
+        for counter_metric_type in CounterMetricType::into_enum_iter() {
+            counter_metrics.push(CounterMetric::new(counter_metric_type));
+        }
+
+        Arc::new(Metrics { counter_metrics })
     }
 
-    pub fn tcp_requests(&self) -> &CounterMetric {
-        &self.tcp_requests
-    }
-
-    pub fn udp_requests(&self) -> &CounterMetric {
-        &self.udp_requests
-    }
-
-    pub fn local_requests(&self) -> &CounterMetric {
-        &self.local_requests
-    }
-
-    pub fn cache_hits(&self) -> &CounterMetric {
-        &self.cache_hits
-    }
-
-    pub fn cache_misses(&self) -> &CounterMetric {
-        &self.cache_misses
-    }
-
-    pub fn doh_request_errors(&self) -> &CounterMetric {
-        &self.doh_request_errors
+    pub fn counter_metric(&self, counter_metric_type: CounterMetricType) -> &CounterMetric {
+        &self.counter_metrics[counter_metric_type as usize]
     }
 
     pub fn all_metrics(&self) -> Vec<&dyn Metric> {
-        vec![
-            &self.tcp_requests,
-            &self.udp_requests,
-            &self.local_requests,
-            &self.cache_hits,
-            &self.cache_misses,
-            &self.doh_request_errors
-        ]
+        CounterMetricType::into_enum_iter()
+            .map(|counter_metric_type| self.counter_metric(counter_metric_type) as &dyn Metric)
+            .collect()
     }
 
     pub fn all_metrics_string(&self) -> String {

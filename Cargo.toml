@@ -15,6 +15,7 @@ repository = "https://github.com/aaronriekenberg/rust-doh-proxy"
 
 [dependencies]
 bytes = "0.5"
+enum-iterator = "0.6"
 env_logger = "0.7"
 log = "0.4"
 lru = { version = "0.4", default-features = false }

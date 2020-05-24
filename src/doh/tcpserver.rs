@@ -7,7 +7,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 
 use crate::doh::config::ServerConfiguration;
-use crate::doh::metrics::Metrics;
+use crate::doh::metrics::{CounterMetricType, Metrics};
 use crate::doh::proxy::DOHProxy;
 
 pub struct TCPServer {
@@ -46,7 +46,7 @@ impl TCPServer {
             let mut buffer = vec![0u8; usize::from(length)];
             stream.read_exact(&mut buffer).await?;
 
-            self.metrics.tcp_requests().increment_value();
+            self.metrics.counter_metric(CounterMetricType::TCPRequests).increment_value();
 
             let buffer = match self.doh_proxy.process_request_packet_buffer(buffer).await {
                 Some(buffer) => buffer,

@@ -11,7 +11,7 @@ use crate::doh::cache::{Cache, CacheObject};
 use crate::doh::client::DOHClient;
 use crate::doh::config::Configuration;
 use crate::doh::localdomain::LocalDomainCache;
-use crate::doh::metrics::Metrics;
+use crate::doh::metrics::{CounterMetricType, Metrics};
 use crate::doh::request_key::RequestKey;
 use crate::doh::utils;
 
@@ -73,7 +73,7 @@ impl DOHProxy {
         let response_buffer = match self.doh_client.make_doh_request(request_buffer).await {
             Err(e) => {
                 warn!("make_doh_request error {}", e);
-                self.metrics.doh_request_errors().increment_value();
+                self.metrics.counter_metric(CounterMetricType::DOHRequestErrors).increment_value();
                 return None;
             }
             Ok(response_buffer) => response_buffer,
@@ -276,7 +276,7 @@ impl DOHProxy {
         self.get_message_for_local_domain(&request_key, request_message.header().id())
         {
             debug!("local domain request");
-            self.metrics.local_requests().increment_value();
+            self.metrics.counter_metric(CounterMetricType::LocalRequests).increment_value();
             return response_message;
         }
 
@@ -285,12 +285,12 @@ impl DOHProxy {
             .await
         {
             debug!("cache hit");
-            self.metrics.cache_hits().increment_value();
+            self.metrics.counter_metric(CounterMetricType::CacheHits).increment_value();
             return response_message;
         }
 
         debug!("cache miss");
-        self.metrics.cache_misses().increment_value();
+        self.metrics.counter_metric(CounterMetricType::CacheMisses).increment_value();
 
         let response_message = match self.make_doh_request(request_message).await {
             None => return self.build_failure_response_message(request_message),

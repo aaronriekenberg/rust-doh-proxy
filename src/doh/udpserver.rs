@@ -6,7 +6,7 @@ use tokio::net::{udp::SendHalf, UdpSocket};
 use tokio::sync::mpsc;
 
 use crate::doh::config::ServerConfiguration;
-use crate::doh::metrics::Metrics;
+use crate::doh::metrics::{CounterMetricType, Metrics};
 use crate::doh::proxy::DOHProxy;
 
 struct UDPResponseMessage(Vec<u8>, std::net::SocketAddr);
@@ -36,7 +36,7 @@ impl UDPServer {
         request_buffer: Vec<u8>,
         peer: std::net::SocketAddr,
     ) {
-        self.metrics.udp_requests().increment_value();
+        self.metrics.counter_metric(CounterMetricType::UDPRequests).increment_value();
 
         let response_buffer = match self
             .doh_proxy
