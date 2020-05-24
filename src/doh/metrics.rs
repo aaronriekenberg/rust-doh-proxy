@@ -32,15 +32,15 @@ impl CounterMetricType {
 }
 
 pub struct CounterMetric {
+    name: &'static str,
     value: AtomicU64,
-    counter_metric_type: CounterMetricType,
 }
 
 impl CounterMetric {
     fn new(counter_metric_type: CounterMetricType) -> Self {
         CounterMetric {
+            name: counter_metric_type.name(),
             value: AtomicU64::new(0),
-            counter_metric_type,
         }
     }
 
@@ -55,7 +55,7 @@ impl CounterMetric {
 
 impl Metric for CounterMetric {
     fn name(&self) -> &str {
-        self.counter_metric_type.name()
+        self.name
     }
 }
 
