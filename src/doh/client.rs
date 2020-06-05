@@ -88,7 +88,7 @@ impl DOHClient {
         })
     }
 
-    async fn acquire_semaphore(&self) -> Result<SemaphorePermit<'_>, Box<dyn Error>> {
+    fn acquire_semaphore(&self) -> Result<SemaphorePermit<'_>, Box<dyn Error>> {
         match self.request_semaphore.try_acquire() {
             Ok(permit) => Ok(permit),
             Err(_) => {
@@ -103,7 +103,7 @@ impl DOHClient {
         &self,
         request_buffer: Vec<u8>,
     ) -> Result<Vec<u8>, Box<dyn Error>> {
-        let _permit = self.acquire_semaphore().await?;
+        let _permit = self.acquire_semaphore()?;
 
         let response = self
             .client
