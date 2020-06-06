@@ -11,7 +11,7 @@ struct RequestQueryKey {
     query_class: DNSClass,
 }
 
-#[derive(Clone, Debug, Eq, Hash, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Debug, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub struct RequestKey {
     query_keys: Vec<RequestQueryKey>,
 }
