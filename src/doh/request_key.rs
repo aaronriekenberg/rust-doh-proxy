@@ -4,14 +4,14 @@ use trust_dns_proto::op::Message;
 use trust_dns_proto::rr::dns_class::DNSClass;
 use trust_dns_proto::rr::record_type::RecordType;
 
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Debug, Hash, Eq, PartialEq, Ord, PartialOrd)]
 struct RequestQueryKey {
     name: String,
     query_type: RecordType,
     query_class: DNSClass,
 }
 
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq, Ord, PartialOrd)]
 pub struct RequestKey {
     query_keys: Vec<RequestQueryKey>,
 }
@@ -33,10 +33,13 @@ impl TryFrom<&Message> for RequestKey {
             });
         }
 
-        if query_keys.is_empty() {
-            Err("query_keys is empty")
-        } else {
-            Ok(RequestKey { query_keys })
+        match query_keys.len() {
+            0 => Err("query_keys is empty"),
+            1 => Ok(RequestKey { query_keys }),
+            _ => {
+                query_keys.sort();
+                Ok(RequestKey { query_keys })
+            }
         }
     }
 }
