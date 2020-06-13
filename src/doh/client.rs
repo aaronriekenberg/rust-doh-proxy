@@ -70,6 +70,8 @@ fn validate_response_content_length(
     }
 }
 
+const DOH_MIME_TYPE: &'static str = "application/dns-message";
+
 pub struct DOHClient {
     client_configuration: ClientConfiguration,
     client: reqwest::Client,
@@ -105,8 +107,8 @@ impl DOHClient {
         let response = self
             .client
             .post(self.client_configuration.remote_url())
-            .header("Content-Type", "application/dns-message")
-            .header("Accept", "application/dns-message")
+            .header(reqwest::header::CONTENT_TYPE, DOH_MIME_TYPE)
+            .header(reqwest::header::ACCEPT, DOH_MIME_TYPE)
             .body(request_buffer)
             .send()
             .await?;
