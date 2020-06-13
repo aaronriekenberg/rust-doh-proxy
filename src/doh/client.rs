@@ -12,7 +12,8 @@ use crate::doh::config::ClientConfiguration;
 enum DOHRequestErrorType {
     TooManyOutstandingRequests,
     HTTPRequestError,
-    InvalidContentLength,
+    ContentLengthTooLong,
+    ContentLengthMissing,
 }
 
 #[derive(Debug)]
@@ -34,7 +35,8 @@ impl fmt::Display for DOHRequestError {
             match self.error_type {
                 DOHRequestErrorType::TooManyOutstandingRequests => "too many outstanding requests",
                 DOHRequestErrorType::HTTPRequestError => "http request error",
-                DOHRequestErrorType::InvalidContentLength => "invalid content length",
+                DOHRequestErrorType::ContentLengthTooLong => "content length too long",
+                DOHRequestErrorType::ContentLengthMissing => "content length missing"
             }
         )
     }
@@ -52,20 +54,20 @@ fn validate_response_content_length(
             debug!("content_length = {}", content_length);
             if content_length > MAX_CONTENT_LENGTH {
                 warn!("got too long response content_length = {}", content_length);
-                return Err(DOHRequestError::new(
-                    DOHRequestErrorType::InvalidContentLength,
-                ));
+                Err(DOHRequestError::new(
+                    DOHRequestErrorType::ContentLengthTooLong,
+                ))
+            } else {
+                Ok(())
             }
         }
         None => {
             warn!("content_length = None");
-            return Err(DOHRequestError::new(
-                DOHRequestErrorType::InvalidContentLength,
-            ));
+            Err(DOHRequestError::new(
+                DOHRequestErrorType::ContentLengthMissing,
+            ))
         }
-    };
-
-    Ok(())
+    }
 }
 
 pub struct DOHClient {
@@ -88,15 +90,10 @@ impl DOHClient {
         })
     }
 
-    fn acquire_semaphore(&self) -> Result<SemaphorePermit<'_>, Box<dyn Error>> {
-        match self.request_semaphore.try_acquire() {
-            Ok(permit) => Ok(permit),
-            Err(_) => {
-                return Err(DOHRequestError::new(
-                    DOHRequestErrorType::TooManyOutstandingRequests,
-                ));
-            }
-        }
+    fn acquire_semaphore(&self) -> Result<SemaphorePermit<'_>, Box<DOHRequestError>> {
+        self.request_semaphore.try_acquire().map_err(|_| DOHRequestError::new(
+            DOHRequestErrorType::TooManyOutstandingRequests,
+        ))
     }
 
     pub async fn make_doh_request(
@@ -117,7 +114,7 @@ impl DOHClient {
         debug!("after reqwest post response status = {}", response.status());
 
         if response.status() != reqwest::StatusCode::OK {
-            warn!("got error response status {}", response.status().as_u16());
+            warn!("got http error response status {}", response.status().as_u16());
             return Err(DOHRequestError::new(DOHRequestErrorType::HTTPRequestError));
         }
 
