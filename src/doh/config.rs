@@ -124,7 +124,9 @@ impl ProxyConfiguration {
 #[derive(Debug, Clone, Deserialize)]
 pub struct Configuration {
     server_configuration: ServerConfiguration,
+    #[serde(default)]
     forward_domain_configurations: Vec<ForwardDomainConfiguration>,
+    #[serde(default)]
     reverse_domain_configurations: Vec<ReverseDomainConfiguration>,
     cache_configuration: CacheConfiguration,
     client_configuration: ClientConfiguration,
