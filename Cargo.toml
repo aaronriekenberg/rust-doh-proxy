@@ -14,16 +14,18 @@ repository = "https://github.com/aaronriekenberg/rust-doh-proxy"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+pin-project = "1"
+
 bytes = "0.5"
 enum-iterator = "0.6"
 env_logger = "0.7"
 log = "0.4"
 lru = { version = "0.5", default-features = false }
-reqwest = { version = "0.10", default-features = false, features = ["rustls-tls"] }
+reqwest = { version = "0.11", default-features = false, features = ["rustls-tls"] }
 serde = "1.0"
 serde_derive = "1.0"
 serde_json = "1.0"
-tokio = { version = "0.2", features = ["full"] }
+tokio = { version = "1.20", features = ["full"] }
 trust-dns-proto = "0.19"
 
 [build-dependencies]
